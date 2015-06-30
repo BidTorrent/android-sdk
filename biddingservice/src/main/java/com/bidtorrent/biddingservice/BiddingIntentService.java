@@ -9,11 +9,14 @@ import com.bidtorrent.bidding.AuctionResult;
 import com.bidtorrent.bidding.Auctioneer;
 import com.bidtorrent.bidding.BidOpportunity;
 import com.bidtorrent.bidding.BidResponse;
+import com.bidtorrent.bidding.BidderConfiguration;
+import com.bidtorrent.bidding.BidderConfigurationFilters;
+import com.bidtorrent.bidding.BidderSelector;
 import com.bidtorrent.bidding.ConstantBidder;
 import com.bidtorrent.bidding.HttpBidder;
 import com.bidtorrent.bidding.IBidder;
 import com.bidtorrent.bidding.JsonResponseConverter;
-import com.google.common.util.concurrent.ListenableFuture;
+import com.bidtorrent.bidding.PublisherConfiguration;
 
 import java.net.URI;
 import java.util.ArrayList;
@@ -26,12 +29,58 @@ import java.util.concurrent.TimeUnit;
 public class BiddingIntentService extends IntentService {
     public static String BID_RESPONSE_AVAILABLE = "Manitralalala";
     private final ExecutorService executor;
-    Auctioneer auctioneer;
+    private final Auctioneer auctioneer;
+    private final BidderSelector selector;
+    private final PublisherConfiguration publisherConfiguration;
 
     public BiddingIntentService() {
         super("BidTorrent bidding service");
         this.executor = Executors.newCachedThreadPool();
         this.auctioneer = new Auctioneer(100000, Executors.newCachedThreadPool());
+
+        //FIXME: Poll real configuration
+        this.publisherConfiguration = new PublisherConfiguration(
+                new String[0],
+                new String[0],
+                new String[0],
+                new String[0],
+                "FR",
+                "EUR",
+                0.2f,
+                1000,
+                50000,
+                5);
+
+        this.selector = new BidderSelector();
+
+        //FIXME: Poll real bidders
+        this.selector.addBidder(
+                new BidderConfiguration("http://adlb.me/bidder/bid.php?bidder=pony",
+                        new BidderConfigurationFilters(
+                                1f,
+                                new ArrayList<String>(),
+                                new ArrayList<String>(),
+                                new ArrayList<String>(),
+                                new ArrayList<String>(),
+                                new ArrayList<String>(),
+                                new ArrayList<String>(),
+                                new ArrayList<String>()
+                                ),
+                        "ssh-rsa ...."));
+
+        this.selector.addBidder(
+                new BidderConfiguration("http://adlb.me/bidder/bid.php?bidder=criteo",
+                        new BidderConfigurationFilters(
+                                1f,
+                                new ArrayList<String>(),
+                                new ArrayList<String>(),
+                                new ArrayList<String>(),
+                                new ArrayList<String>(),
+                                new ArrayList<String>(),
+                                new ArrayList<String>(),
+                                new ArrayList<String>()
+                        ),
+                        "ssh-rsa ...."));
     }
 
     private Future<AuctionResult> runAuction()
@@ -43,8 +92,9 @@ public class BiddingIntentService extends IntentService {
         bidders.add(new ConstantBidder(4, new BidResponse(4, 0.3f, "CREATIVE", "NOTIFYME")));
         bidders.add(new ConstantBidder(3, new BidResponse(3, 0.4f, "CREATIVETHESHIT", "NOTIFYMENOT")));
 
-        bidders.add(new HttpBidder(1, "Kitten", URI.create("http://adlb.me/bidder/bid.php?bidder=pony"), new JsonResponseConverter(), 50000));
-        bidders.add(new HttpBidder(2, "Criteo", URI.create("http://adlb.me/bidder/bid.php?bidder=criteo"), new JsonResponseConverter(), 50000));
+        for (BidderConfiguration config : this.selector.getAvailableBidders(this.publisherConfiguration)){
+            bidders.add(new HttpBidder(1, "Kitten", URI.create(config.getEndPoint()), new JsonResponseConverter(), this.publisherConfiguration.getSoftTimeout()));
+        }
 
         return this.auctioneer.runAuction(new Auction(new BidOpportunity(URI.create("http://perdu.com")), bidders, 0.5f));
     }
