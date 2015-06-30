@@ -15,6 +15,7 @@ import java.util.SortedSet;
 import java.util.TreeSet;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.FutureTask;
@@ -23,9 +24,11 @@ import javax.annotation.Nullable;
 
 public class Auctioneer implements IAuctioneer {
     public final long timeout;
+    private final ExecutorService executor;
 
-    public Auctioneer(long timeout) {
+    public Auctioneer(long timeout, ExecutorService executor) {
         this.timeout = timeout;
+        this.executor = executor;
     }
 
     @Override
@@ -38,7 +41,7 @@ public class Auctioneer implements IAuctioneer {
                 Collection<ListenableFuture<BidResponse>> responseFutures;
                 ListenableFuture<List<BidResponse>> responses;
 
-                responseFutures = pushResponseFutures(auction.getOpportunity(), auction.getBidders());
+                responseFutures = pushResponseFutures(auction.getOpportunity(), auction.getBidders(), executor);
                 responses = getBidResponses(responseFutures);
 
                 return Futures.lazyTransform(responses, new Function<List<BidResponse>, AuctionResult>() {
@@ -79,11 +82,12 @@ public class Auctioneer implements IAuctioneer {
         return new AuctionResult(winningBid, secondPrice, getBidderById(winningBid.getBidderId(), bidders), responses);
     }
 
-    private static Collection<ListenableFuture<BidResponse>> pushResponseFutures(final BidOpportunity opportunity, final List<IBidder> bidders)
+    private static Collection<ListenableFuture<BidResponse>> pushResponseFutures(
+            final BidOpportunity opportunity, final List<IBidder> bidders,
+            final ExecutorService executorService)
     {
         Collection<ListenableFuture<BidResponse>> responseFutures;
-        // FIXME: the executor should be created in the ctor
-        ListeningExecutorService executor = MoreExecutors.listeningDecorator(Executors.newFixedThreadPool(bidders.size()));
+        ListeningExecutorService executor = MoreExecutors.listeningDecorator(executorService);
 
         responseFutures = new ArrayList<>(bidders.size());
         for (final IBidder bidder: bidders) {

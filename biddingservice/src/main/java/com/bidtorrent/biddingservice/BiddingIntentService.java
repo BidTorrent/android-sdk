@@ -25,19 +25,19 @@ import java.util.concurrent.TimeUnit;
 
 public class BiddingIntentService extends IntentService {
     public static String BID_RESPONSE_AVAILABLE = "Manitralalala";
-    private ExecutorService executor;
+    private final ExecutorService executor;
+    Auctioneer auctioneer;
 
     public BiddingIntentService() {
         super("BidTorrent bidding service");
         this.executor = Executors.newCachedThreadPool();
+        this.auctioneer = new Auctioneer(100000, Executors.newCachedThreadPool());
     }
+
     private Future<AuctionResult> runAuction()
     {
-        Auctioneer auctioneer;
         List<IBidder> bidders;
-        Future<AuctionResult> auctionResultFuture;
 
-        auctioneer = new Auctioneer(100000);
         bidders = new ArrayList<>();
 
         bidders.add(new ConstantBidder(4, new BidResponse(4, 0.3f, "CREATIVE", "NOTIFYME")));
@@ -46,11 +46,11 @@ public class BiddingIntentService extends IntentService {
         bidders.add(new HttpBidder(1, "Kitten", URI.create("http://adlb.me/bidder/bid.php?bidder=pony"), new JsonResponseConverter(), 50000));
         bidders.add(new HttpBidder(2, "Criteo", URI.create("http://adlb.me/bidder/bid.php?bidder=criteo"), new JsonResponseConverter(), 50000));
 
-        return auctioneer.runAuction(new Auction(new BidOpportunity(URI.create("http://perdu.com")), bidders, 0.5f));
+        return this.auctioneer.runAuction(new Auction(new BidOpportunity(URI.create("http://perdu.com")), bidders, 0.5f));
     }
 
     @Override
-    protected void onHandleIntent(Intent intent) {
+    protected void onHandleIntent(final Intent intent) {
         this.executor.submit(new Runnable() {
             @Override
             public void run() {
@@ -59,7 +59,7 @@ public class BiddingIntentService extends IntentService {
 
                 auctionResultFuture = runAuction();
                 try {
-                    auctionResult = auctionResultFuture.get(100000, TimeUnit.MILLISECONDS);
+                    auctionResult = auctionResultFuture.get(intent.getLongExtra("timeout", 10000), TimeUnit.MILLISECONDS);
                 } catch (Exception e) {
                     Log.e("BiddingService", "Bidding service failed", e);
                 }
