@@ -59,7 +59,7 @@ public class BiddingIntentService extends IntentService {
 
                 auctionResultFuture = runAuction();
                 try {
-                    auctionResult = auctionResultFuture.get(intent.getLongExtra("timeout", 10000), TimeUnit.MILLISECONDS);
+                    auctionResult = auctionResultFuture.get(10000, TimeUnit.MILLISECONDS);
                 } catch (Exception e) {
                     Log.e("BiddingService", "Bidding service failed", e);
                 }
