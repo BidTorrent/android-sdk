@@ -51,7 +51,7 @@ public class BiddingIntentService extends IntentService {
                 50000,
                 5);
 
-        this.selector = new BidderSelector();
+        this.selector = new BidderSelector(publisherConfiguration);
 
         //FIXME: Poll real bidders
         this.selector.addBidder(
@@ -83,7 +83,7 @@ public class BiddingIntentService extends IntentService {
                         "ssh-rsa ...."));
     }
 
-    private Future<AuctionResult> runAuction()
+    private Future<AuctionResult> runAuction(BidOpportunity bidOpportunity)
     {
         List<IBidder> bidders;
 
@@ -92,11 +92,16 @@ public class BiddingIntentService extends IntentService {
         bidders.add(new ConstantBidder(4, new BidResponse(4, 0.3f, "CREATIVE", "NOTIFYME")));
         bidders.add(new ConstantBidder(3, new BidResponse(3, 0.4f, "CREATIVETHESHIT", "NOTIFYMENOT")));
 
-        for (BidderConfiguration config : this.selector.getAvailableBidders(this.publisherConfiguration)){
-            bidders.add(new HttpBidder(1, "Kitten", URI.create(config.getEndPoint()), new JsonResponseConverter(), this.publisherConfiguration.getSoftTimeout()));
+        for (BidderConfiguration config : this.selector.getAvailableBidders()){
+            bidders.add(new HttpBidder(
+                    1,
+                    "Kitten",
+                    URI.create(config.getEndPoint()),
+                    new JsonResponseConverter(),
+                    this.publisherConfiguration.getSoftTimeout()));
         }
 
-        return this.auctioneer.runAuction(new Auction(new BidOpportunity(URI.create("http://perdu.com")), bidders, 0.5f));
+        return this.auctioneer.runAuction(new Auction(bidOpportunity, bidders, 0.5f));
     }
 
     @Override
@@ -107,7 +112,13 @@ public class BiddingIntentService extends IntentService {
                 Future<AuctionResult> auctionResultFuture;
                 AuctionResult auctionResult = null;
 
-                auctionResultFuture = runAuction();
+                BidOpportunity bidOpportunity = new BidOpportunity(
+                        intent.getIntExtra("width", 0),
+                        intent.getIntExtra("height", 0),
+                        intent.getStringExtra("appName")
+                );
+
+                auctionResultFuture = runAuction(bidOpportunity);
                 try {
                     auctionResult = auctionResultFuture.get(10000, TimeUnit.MILLISECONDS);
                 } catch (Exception e) {

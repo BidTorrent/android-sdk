@@ -1,15 +1,27 @@
 package com.bidtorrent.bidding;
 
-import java.net.URI;
 
 public class BidOpportunity {
-    private URI publisherUri;
 
-    public BidOpportunity(URI publisherUri) {
-        this.publisherUri = publisherUri;
+    private int width;
+    private int height;
+    private String appName;
+
+    public BidOpportunity(int width, int height, String appName) {
+        this.width = width;
+        this.height = height;
+        this.appName = appName;
     }
 
-    public URI getPublisherUri() {
-        return publisherUri;
+    public String getAppName() {
+        return appName;
+    }
+
+    public int getWidth() {
+        return width;
+    }
+
+    public int getHeight() {
+        return height;
     }
 }
