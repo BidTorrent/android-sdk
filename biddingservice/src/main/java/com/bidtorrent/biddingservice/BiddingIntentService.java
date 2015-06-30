@@ -13,22 +13,26 @@ import com.bidtorrent.bidding.ConstantBidder;
 import com.bidtorrent.bidding.HttpBidder;
 import com.bidtorrent.bidding.IBidder;
 import com.bidtorrent.bidding.JsonResponseConverter;
+import com.google.common.util.concurrent.ListenableFuture;
 
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
 public class BiddingIntentService extends IntentService {
     public static String BID_RESPONSE_AVAILABLE = "Manitralalala";
+    private ExecutorService executor;
 
     public BiddingIntentService() {
         super("BidTorrent bidding service");
+        this.executor = Executors.newCachedThreadPool();
     }
-
-    @Override
-    protected void onHandleIntent(Intent intent) {
+    private Future<AuctionResult> runAuction()
+    {
         Auctioneer auctioneer;
         List<IBidder> bidders;
         Future<AuctionResult> auctionResultFuture;
@@ -42,23 +46,34 @@ public class BiddingIntentService extends IntentService {
         bidders.add(new HttpBidder(1, "Kitten", URI.create("http://adlb.me/bidder/bid.php?bidder=pony"), new JsonResponseConverter(), 50000));
         bidders.add(new HttpBidder(2, "Criteo", URI.create("http://adlb.me/bidder/bid.php?bidder=criteo"), new JsonResponseConverter(), 50000));
 
-        auctionResultFuture = auctioneer.runAuction(new Auction(new BidOpportunity(URI.create("http://perdu.com")), bidders, 0.5f));
+        return auctioneer.runAuction(new Auction(new BidOpportunity(URI.create("http://perdu.com")), bidders, 0.5f));
+    }
 
-        AuctionResult auctionResult = null;
-        try {
-            auctionResult = auctionResultFuture.get(100000, TimeUnit.MILLISECONDS);
-        } catch (Exception e) {
-            Log.e("BiddingService", "Bidding service failed", e);
-        }
+    @Override
+    protected void onHandleIntent(Intent intent) {
+        this.executor.submit(new Runnable() {
+            @Override
+            public void run() {
+                Future<AuctionResult> auctionResultFuture;
+                AuctionResult auctionResult = null;
 
-        Intent responseAvailableIntent = new Intent(BID_RESPONSE_AVAILABLE);
-        if (auctionResult == null)
-            responseAvailableIntent.putExtra("success", false);
-        else {
-            responseAvailableIntent.putExtra("success", true);
-            responseAvailableIntent.putExtra("price", auctionResult.getWinningPrice());
-        }
+                auctionResultFuture = runAuction();
+                try {
+                    auctionResult = auctionResultFuture.get(100000, TimeUnit.MILLISECONDS);
+                } catch (Exception e) {
+                    Log.e("BiddingService", "Bidding service failed", e);
+                }
 
-        sendBroadcast(responseAvailableIntent);
+                Intent responseAvailableIntent = new Intent(BID_RESPONSE_AVAILABLE);
+                if (auctionResult == null)
+                    responseAvailableIntent.putExtra("success", false);
+                else {
+                    responseAvailableIntent.putExtra("success", true);
+                    responseAvailableIntent.putExtra("price", auctionResult.getWinningPrice());
+                }
+
+                sendBroadcast(responseAvailableIntent);
+            }
+        });
     }
 }

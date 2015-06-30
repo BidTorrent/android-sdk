@@ -82,6 +82,7 @@ public class Auctioneer implements IAuctioneer {
     private static Collection<ListenableFuture<BidResponse>> pushResponseFutures(final BidOpportunity opportunity, final List<IBidder> bidders)
     {
         Collection<ListenableFuture<BidResponse>> responseFutures;
+        // FIXME: the executor should be created in the ctor
         ListeningExecutorService executor = MoreExecutors.listeningDecorator(Executors.newFixedThreadPool(bidders.size()));
 
         responseFutures = new ArrayList<>(bidders.size());
