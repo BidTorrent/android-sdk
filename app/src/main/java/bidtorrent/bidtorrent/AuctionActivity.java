@@ -1,5 +1,9 @@
 package bidtorrent.bidtorrent;
 
+import android.content.BroadcastReceiver;
+import android.content.Context;
+import android.content.Intent;
+import android.content.IntentFilter;
 import android.os.Bundle;
 import android.support.v7.app.ActionBarActivity;
 import android.view.View;
@@ -15,12 +19,14 @@ import com.bidtorrent.bidding.ConstantBidder;
 import com.bidtorrent.bidding.HttpBidder;
 import com.bidtorrent.bidding.IBidder;
 import com.bidtorrent.bidding.JsonResponseConverter;
+import com.bidtorrent.biddingservice.BiddingIntentService;
 
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
@@ -29,6 +35,23 @@ import java.util.concurrent.TimeoutException;
 public class AuctionActivity extends ActionBarActivity {
     private Button bidButton;
     private TextView debugView;
+
+    private BroadcastReceiver createBidAvailableReceiver()
+    {
+        return new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context context, Intent intent) {
+                Bundle extras = intent.getExtras();
+
+                if (!extras.getBoolean("success"))
+                    debugView.append("The auction failed :-(\n");
+                else
+                {
+                    debugView.append(String.format(Locale.getDefault(), "Price: %.2f\n", extras.getFloat("price")));
+                }
+            }
+        };
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -43,43 +66,18 @@ public class AuctionActivity extends ActionBarActivity {
                 runAuction();
             }
         });
+        registerReceiver(this.createBidAvailableReceiver(), new IntentFilter(BiddingIntentService.BID_RESPONSE_AVAILABLE));
     }
 
     private void runAuction()
     {
-        Auctioneer auctioneer;
-        List<IBidder> bidders;
-        Future<AuctionResult> auctionResultFuture;
-        AuctionResult auctionResult = null;
+        startService(new Intent(this, BiddingIntentService.class));
 
         this.debugView.setText("Running the auction...\n");
+    }
 
-        auctioneer = new Auctioneer(100000);
-        bidders = new ArrayList<>();
-
-        bidders.add(new ConstantBidder(4, new BidResponse(4, 0.3f, "CREATIVE", "NOTIFYME")));
-        bidders.add(new ConstantBidder(3, new BidResponse(3, 0.4f, "CREATIVETHESHIT", "NOTIFYMENOT")));
-
-        bidders.add(new HttpBidder(1, "Kitten", URI.create("http://adlb.me/bidder/bid.php?bidder=pony"), new JsonResponseConverter(), 50000));
-        bidders.add(new HttpBidder(2, "Criteo", URI.create("http://adlb.me/bidder/bid.php?bidder=criteo"), new JsonResponseConverter(), 50000));
-
-        auctionResultFuture = auctioneer.runAuction(new Auction(new BidOpportunity(URI.create("http://perdu.com")), bidders, 0.5f));
-
-        try {
-            auctionResult = auctionResultFuture.get(100000, TimeUnit.MILLISECONDS);
-        } catch (InterruptedException e) {
-            this.debugView.append("Interrupted");
-        } catch (ExecutionException e) {
-            this.debugView.append("Exec exc\n");
-            this.debugView.append(e.getMessage() + "\n");
-            StringWriter sw = new StringWriter();
-            PrintWriter pw = new PrintWriter(sw);
-            e.printStackTrace(pw);
-            this.debugView.append(sw.toString());
-        } catch (TimeoutException e) {
-            this.debugView.append("Timeout");
-        }
-
+    /*private void bc()
+    {
         if (auctionResult == null)
             this.debugView.append("The auction failed");
         else
@@ -92,5 +90,5 @@ public class AuctionActivity extends ActionBarActivity {
                 this.debugView.append("Price: " + String.valueOf(auctionResult.getWinningPrice()) + "\n");
             };
         }
-    }
+    }*/
 }

@@ -1,1 +1,1 @@
-include ':bidding', ':app'
+include ':bidding', ':app', ':biddingservice'
