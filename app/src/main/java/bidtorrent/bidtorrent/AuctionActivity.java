@@ -10,27 +10,12 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.TextView;
 
-import com.bidtorrent.bidding.Auction;
-import com.bidtorrent.bidding.AuctionResult;
-import com.bidtorrent.bidding.Auctioneer;
 import com.bidtorrent.bidding.BidOpportunity;
-import com.bidtorrent.bidding.BidResponse;
-import com.bidtorrent.bidding.ConstantBidder;
-import com.bidtorrent.bidding.HttpBidder;
-import com.bidtorrent.bidding.IBidder;
-import com.bidtorrent.bidding.JsonResponseConverter;
 import com.bidtorrent.biddingservice.BiddingIntentService;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 
-import java.io.PrintWriter;
-import java.io.StringWriter;
-import java.net.URI;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Locale;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 
 public class AuctionActivity extends ActionBarActivity {
     private Button bidButton;
@@ -43,12 +28,20 @@ public class AuctionActivity extends ActionBarActivity {
             public void onReceive(Context context, Intent intent) {
                 Bundle extras = intent.getExtras();
 
-                if (!extras.getBoolean("success"))
-                    debugView.append("The auction failed :-(\n");
-                else
-                {
-                    debugView.append(String.format(Locale.getDefault(), "Price: %.2f\n", extras.getFloat("price")));
-                }
+                debugView.append(String.format(Locale.getDefault(), "Price: %.2f\n", extras.getFloat("price")));
+            }
+        };
+    }
+
+    private BroadcastReceiver createAuctionErrorReceiver()
+    {
+        return new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context context, Intent intent) {
+                Bundle extras = intent.getExtras();
+
+                debugView.append(String.format(
+                        "The auction failed: %s\n", extras.getString(BiddingIntentService.AUCTION_ERROR_REASON_ARG)));
             }
         };
     }
@@ -66,29 +59,20 @@ public class AuctionActivity extends ActionBarActivity {
                 runAuction();
             }
         });
-        registerReceiver(this.createBidAvailableReceiver(), new IntentFilter(BiddingIntentService.BID_RESPONSE_AVAILABLE));
+        registerReceiver(this.createBidAvailableReceiver(), new IntentFilter(BiddingIntentService.AUCTION_RESULT_AVAILABLE));
+        registerReceiver(this.createAuctionErrorReceiver(), new IntentFilter(BiddingIntentService.AUCTION_FAILED));
     }
 
     private void runAuction()
     {
-        startService(new Intent(this, BiddingIntentService.class));
+        Intent auctionIntent = new Intent(this, BiddingIntentService.class);
+        Gson gson;
+        BidOpportunity opp;
+
+        opp = new BidOpportunity(300, 250, "bidtorrent.dummy.app");
+        gson = new GsonBuilder().create();
+        startService(auctionIntent.putExtra(BiddingIntentService.REQUEST_ARG_NAME, gson.toJson(opp)));
 
         this.debugView.setText("Running the auction...\n");
     }
-
-    /*private void bc()
-    {
-        if (auctionResult == null)
-            this.debugView.append("The auction failed");
-        else
-        {
-            if (auctionResult.getWinningBidder() == null)
-                this.debugView.append("Noone won :-(");
-            else
-            {
-                this.debugView.append("Bidder: " + String.valueOf(auctionResult.getWinningBidder().getId()) + "\n");
-                this.debugView.append("Price: " + String.valueOf(auctionResult.getWinningPrice()) + "\n");
-            };
-        }
-    }*/
 }

@@ -18,6 +18,8 @@ import com.bidtorrent.bidding.IBidder;
 import com.bidtorrent.bidding.JsonResponseConverter;
 import com.bidtorrent.bidding.Notificator;
 import com.bidtorrent.bidding.PublisherConfiguration;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 
 import java.net.URI;
 import java.util.ArrayList;
@@ -28,7 +30,11 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
 public class BiddingIntentService extends IntentService {
-    public static String BID_RESPONSE_AVAILABLE = "Manitralalala";
+    public static String AUCTION_RESULT_AVAILABLE = "Manitralalala";
+    public static String AUCTION_FAILED = "Manitrololol";
+    public static String REQUEST_ARG_NAME = "rq";
+    public static String AUCTION_ERROR_REASON_ARG = "reason";
+
     private final ExecutorService executor;
     private final Auctioneer auctioneer;
     private BidderSelector selector;
@@ -110,6 +116,30 @@ public class BiddingIntentService extends IntentService {
         return this.auctioneer.runAuction(new Auction(bidOpportunity, bidders, 0.5f));
     }
 
+    private void notifyFailure(String errorMsg)
+    {
+        Intent responseAvailableIntent = new Intent(AUCTION_FAILED);
+
+        responseAvailableIntent.putExtra(AUCTION_ERROR_REASON_ARG, errorMsg);
+
+        this.sendBroadcast(responseAvailableIntent);
+    }
+
+    private void notifySuccess(AuctionResult auctionResult)
+    {
+        Intent responseAvailableIntent = new Intent(AUCTION_RESULT_AVAILABLE);
+
+        responseAvailableIntent.putExtra("price", auctionResult.getWinningPrice());
+
+        if (auctionResult.getWinningBid() != null){
+            String notificationUrl = auctionResult.getWinningBid().buildNotificationUrl("","",auctionResult.getRunnerUp());
+            if (notificationUrl != null)
+                this.notificator.notify(notificationUrl);
+        }
+
+        this.sendBroadcast(responseAvailableIntent);
+    }
+
     @Override
     protected void onHandleIntent(final Intent intent) {
         this.executor.submit(new Runnable() {
@@ -117,35 +147,28 @@ public class BiddingIntentService extends IntentService {
             public void run() {
                 Future<AuctionResult> auctionResultFuture;
                 AuctionResult auctionResult = null;
+                BidOpportunity bidOpportunity;
+                Gson gson;
 
-                BidOpportunity bidOpportunity = new BidOpportunity(
-                        intent.getIntExtra("width", 0),
-                        intent.getIntExtra("height", 0),
-                        intent.getStringExtra("appName")
-                );
+                gson = new GsonBuilder().create();
+                bidOpportunity = gson.fromJson(intent.getStringExtra(REQUEST_ARG_NAME), BidOpportunity.class);
+
+                if (bidOpportunity == null)
+                {
+                    notifyFailure(String.format(
+                            "Failed to deserialize the request (should be in the %s field of the intent)",
+                            REQUEST_ARG_NAME));
+                    return;
+                }
 
                 auctionResultFuture = runAuction(bidOpportunity);
                 try {
                     auctionResult = auctionResultFuture.get(10000, TimeUnit.MILLISECONDS);
                 } catch (Exception e) {
-                    Log.e("BiddingService", "Bidding service failed", e);
+                    notifyFailure("Auction reached the timeout w/o returning any bid");
                 }
 
-                Intent responseAvailableIntent = new Intent(BID_RESPONSE_AVAILABLE);
-                if (auctionResult == null)
-                    responseAvailableIntent.putExtra("success", false);
-                else {
-                    responseAvailableIntent.putExtra("success", true);
-                    responseAvailableIntent.putExtra("price", auctionResult.getWinningPrice());
-
-                    if (auctionResult.getWinningBid() != null){
-                        String notificationUrl = auctionResult.getWinningBid().buildNotificationUrl("","",auctionResult.getRunnerUp());
-                        if (notificationUrl != null)
-                            notificator.notify(notificationUrl);
-                    }
-                }
-
-                sendBroadcast(responseAvailableIntent);
+                notifySuccess(auctionResult);
             }
         });
     }
