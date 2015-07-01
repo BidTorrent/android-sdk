@@ -16,6 +16,7 @@ import com.bidtorrent.bidding.ConstantBidder;
 import com.bidtorrent.bidding.HttpBidder;
 import com.bidtorrent.bidding.IBidder;
 import com.bidtorrent.bidding.JsonResponseConverter;
+import com.bidtorrent.bidding.Notificator;
 import com.bidtorrent.bidding.PublisherConfiguration;
 
 import java.net.URI;
@@ -30,13 +31,13 @@ public class BiddingIntentService extends IntentService {
     public static String BID_RESPONSE_AVAILABLE = "Manitralalala";
     private final ExecutorService executor;
     private final Auctioneer auctioneer;
-    private final BidderSelector selector;
-    private final PublisherConfiguration publisherConfiguration;
+    private BidderSelector selector;
+    private PublisherConfiguration publisherConfiguration;
+    private final Notificator notificator;
 
     public BiddingIntentService() {
         super("BidTorrent bidding service");
         this.executor = Executors.newCachedThreadPool();
-        this.auctioneer = new Auctioneer(100000, Executors.newCachedThreadPool());
 
         //FIXME: Poll real configuration
         this.publisherConfiguration = new PublisherConfiguration(
@@ -50,6 +51,11 @@ public class BiddingIntentService extends IntentService {
                 1000,
                 50000,
                 5);
+
+        this.auctioneer = new Auctioneer(
+                publisherConfiguration.getSoftTimeout(),
+                Executors.newCachedThreadPool());
+        this.notificator = new Notificator(10000);
 
         this.selector = new BidderSelector(publisherConfiguration);
 
@@ -89,8 +95,8 @@ public class BiddingIntentService extends IntentService {
 
         bidders = new ArrayList<>();
 
-        bidders.add(new ConstantBidder(4, new BidResponse(4, 0.3f, "CREATIVE", "NOTIFYME")));
-        bidders.add(new ConstantBidder(3, new BidResponse(3, 0.4f, "CREATIVETHESHIT", "NOTIFYMENOT")));
+        bidders.add(new ConstantBidder(4, new BidResponse(4, 0.2f, 1, "", "CREATIVE", "NOTIFYME")));
+        bidders.add(new ConstantBidder(3, new BidResponse(3, 0.3f, 1, "", "CREATIVETHESHIT", "NOTIFYMENOT")));
 
         for (BidderConfiguration config : this.selector.getAvailableBidders()){
             bidders.add(new HttpBidder(
@@ -131,6 +137,12 @@ public class BiddingIntentService extends IntentService {
                 else {
                     responseAvailableIntent.putExtra("success", true);
                     responseAvailableIntent.putExtra("price", auctionResult.getWinningPrice());
+
+                    if (auctionResult.getWinningBid() != null){
+                        String notificationUrl = auctionResult.getWinningBid().buildNotificationUrl("","",auctionResult.getRunnerUp());
+                        if (notificationUrl != null)
+                            notificator.notify(notificationUrl);
+                    }
                 }
 
                 sendBroadcast(responseAvailableIntent);

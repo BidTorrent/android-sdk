@@ -16,7 +16,6 @@ import java.util.TreeSet;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.FutureTask;
 
@@ -62,6 +61,7 @@ public class Auctioneer implements IAuctioneer {
 
     private static AuctionResult buildAuctionResult(Collection<BidResponse> responses, float floor, Collection<IBidder> bidders) {
         float secondPrice;
+        long runnerUp = 0l;
         BidResponse winningBid;
         SortedSet<BidResponse> sortedResponses;
         Iterator<BidResponse> iterator;
@@ -70,16 +70,19 @@ public class Auctioneer implements IAuctioneer {
         iterator = sortedResponses.iterator();
 
         if (!iterator.hasNext())
-            return new AuctionResult(null, 0, null, responses);
+            return new AuctionResult(null, 0, null, responses, 0);
 
         winningBid = iterator.next();
 
-        if (iterator.hasNext())
-            secondPrice = iterator.next().getBidPrice();
+        if (iterator.hasNext()){
+            BidResponse second = iterator.next();
+            secondPrice = second.getPrice();
+            runnerUp = second.getBidderId();
+        }
         else
             secondPrice = floor;
 
-        return new AuctionResult(winningBid, secondPrice, getBidderById(winningBid.getBidderId(), bidders), responses);
+        return new AuctionResult(winningBid, secondPrice, getBidderById(winningBid.getBidderId(), bidders), responses, runnerUp);
     }
 
     private static Collection<ListenableFuture<BidResponse>> pushResponseFutures(

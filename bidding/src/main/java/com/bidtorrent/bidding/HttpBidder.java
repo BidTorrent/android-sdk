@@ -22,7 +22,6 @@ public class HttpBidder implements IBidder{
     private final String name;
     private final URI bidUri;
     private final IResponseConverter<String> responseConverter;
-    private final int timeout;
     private ClientConnectionManager connectionManager;
     private HttpParams httpParameters;
 
@@ -32,9 +31,8 @@ public class HttpBidder implements IBidder{
         this.name = name;
         this.bidUri = bidUri;
         this.responseConverter = responseConverter;
-        this.timeout = timeout;
+        this.httpParameters = new BasicHttpParams();
 
-        httpParameters = new BasicHttpParams();
         // Set the default socket timeout (SO_TIMEOUT)
         // in milliseconds which is the timeout for waiting for data.
         HttpConnectionParams.setSoTimeout(httpParameters, timeout);
