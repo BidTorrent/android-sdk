@@ -11,20 +11,20 @@ import java.util.concurrent.LinkedBlockingQueue;
 public class BidderSelector {
 
     private Collection<BidderConfiguration> bidders;
-    private PublisherConfiguration publisherConfiguration;
+    private com.bidtorrent.bidding.messages.configuration.PublisherConfiguration publisherConfiguration;
 
-    public BidderSelector(PublisherConfiguration publisherConfiguration){
+    public BidderSelector(com.bidtorrent.bidding.messages.configuration.PublisherConfiguration publisherConfiguration){
         this.publisherConfiguration = publisherConfiguration;
         this.bidders = new LinkedBlockingQueue<>();
     }
 
     public void addBidder(BidderConfiguration bidder){
 
-        if (bidder.getFilters().getCountriesBlacklist().contains(publisherConfiguration.getCountry()))
+        if (bidder.getFilters().getCountriesBlacklist().contains(publisherConfiguration.site.publisher.country))
             return; //Country blacklisted
 
         if (!bidder.getFilters().getCountriesWhitelist().isEmpty()
-                && !bidder.getFilters().getCountriesWhitelist().contains(publisherConfiguration.getCountry()))
+                && !bidder.getFilters().getCountriesWhitelist().contains(publisherConfiguration.site.publisher.country))
             return; //Country not in whitelist
 
         String lang = Locale.getDefault().getDisplayLanguage();
@@ -43,7 +43,7 @@ public class BidderSelector {
         LinkedList<BidderConfiguration> bidderConfigurations = new LinkedList<>(this.bidders);
         Collections.shuffle(bidderConfigurations);
 
-        List<BidderConfiguration> availableBidders = new ArrayList<>(publisherConfiguration.getMaximumBidders());
+        List<BidderConfiguration> availableBidders = new ArrayList<>(publisherConfiguration.maximumBidders);
 
         for(BidderConfiguration bidder : bidderConfigurations){
             if (!bidder.canBeUsed()){
@@ -51,7 +51,7 @@ public class BidderSelector {
             }
 
             availableBidders.add(bidder);
-            if (availableBidders.size() > publisherConfiguration.getMaximumBidders())
+            if (availableBidders.size() > publisherConfiguration.maximumBidders)
                 return availableBidders;
         }
 

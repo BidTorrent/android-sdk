@@ -5,11 +5,13 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.net.ConnectivityManager;
+import android.util.Log;
 
 import com.bidtorrent.bidding.Auction;
 import com.bidtorrent.bidding.AuctionResult;
 import com.bidtorrent.bidding.Auctioneer;
 import com.bidtorrent.bidding.BidOpportunity;
+import com.bidtorrent.bidding.PooledHttpClient;
 import com.bidtorrent.bidding.messages.BidResponse;
 import com.bidtorrent.bidding.BidderConfiguration;
 import com.bidtorrent.bidding.BidderConfigurationFilters;
@@ -19,18 +21,22 @@ import com.bidtorrent.bidding.HttpBidder;
 import com.bidtorrent.bidding.IBidder;
 import com.bidtorrent.bidding.JsonResponseConverter;
 import com.bidtorrent.bidding.Notificator;
-import com.bidtorrent.bidding.PublisherConfiguration;
+import com.bidtorrent.bidding.messages.configuration.PublisherConfiguration;
 import com.google.common.base.Function;
 import com.google.common.base.Predicate;
+import com.google.common.util.concurrent.FutureCallback;
+import com.google.common.util.concurrent.Futures;
+import com.google.common.util.concurrent.ListenableFuture;
+import com.google.common.util.concurrent.ListeningExecutorService;
+import com.google.common.util.concurrent.MoreExecutors;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 
-import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Timer;
 import java.util.TimerTask;
-import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Callable;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
@@ -43,13 +49,14 @@ public class BiddingIntentService extends LongLivedService {
     public static String REQUEST_ARG_NAME = "rq";
     public static String AUCTION_ERROR_REASON_ARG = "reason";
 
-    private ExecutorService executor;
+    private ListeningExecutorService executor;
     private Auctioneer auctioneer;
     private AuctionResultPool resultsPool;
     private BidderSelector selector;
     private PublisherConfiguration publisherConfiguration;
     private Notificator notificator;
     private Timer refreshTimer;
+    private PooledHttpClient pooledHttpClient;
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
@@ -60,27 +67,38 @@ public class BiddingIntentService extends LongLivedService {
     @Override
     public void onCreate() {
         super.onCreate();
-        this.executor = Executors.newCachedThreadPool();
+        this.executor = MoreExecutors.listeningDecorator(Executors.newCachedThreadPool());
+        this.pooledHttpClient = new PooledHttpClient(1000);
 
-        //FIXME: Poll real configuration
-        this.publisherConfiguration = new PublisherConfiguration(
-                new String[0],
-                new String[0],
-                new String[0],
-                new String[0],
-                "FR",
-                "EUR",
-                0.02f,
-                1000,
-                50000,
-                5);
-
-        this.auctioneer = new Auctioneer(
-                publisherConfiguration.getSoftTimeout(),
-                Executors.newCachedThreadPool());
         this.notificator = new Notificator(10000, null);
 
-        this.selector = new BidderSelector(publisherConfiguration);
+        ListenableFuture<PublisherConfiguration> futurePublisherConfiguration = executor.submit(new Callable<PublisherConfiguration>() {
+            @Override
+            public PublisherConfiguration call() {
+                return pooledHttpClient.jsonGet("http://static.bidtorrent.io/publisher.json", PublisherConfiguration.class);
+            }
+        });
+
+        Futures.addCallback(futurePublisherConfiguration, new FutureCallback<PublisherConfiguration>() {
+            @Override
+            public void onSuccess(PublisherConfiguration result) {
+                initializeWithPublisherConfiguration(result);
+            }
+
+            @Override
+            public void onFailure(Throwable t) {
+                Log.e("BiddingIntentService", "Failed to retrieve publisher configuration", t);
+            }
+        });
+    }
+
+    private void initializeWithPublisherConfiguration(PublisherConfiguration result) {
+        this.publisherConfiguration = result;
+        this.selector = new BidderSelector(this.publisherConfiguration);
+
+        this.auctioneer = new Auctioneer(
+                this.publisherConfiguration.timeout_soft,
+                Executors.newCachedThreadPool());
 
         //FIXME: Poll real bidders
         this.selector.addBidder(new BidderConfiguration("http://bidder.bidtorrent.io/criteoBid.php",
@@ -114,14 +132,14 @@ public class BiddingIntentService extends LongLivedService {
                                     "Kitten",
                                     config.getEndPoint(),
                                     new JsonResponseConverter(),
-                                    publisherConfiguration.getSoftTimeout()));
+                                    publisherConfiguration.timeout_soft));
                         }
 
                         return auctioneer.runAuction(new Auction(bidOpportunity, bidders, 0.02f));
                     }
                 },
                 new PoolSizer(
-                    (ConnectivityManager)this.getSystemService(Context.CONNECTIVITY_SERVICE), 3, 5),
+                        (ConnectivityManager)getSystemService(Context.CONNECTIVITY_SERVICE), 3, 5),
                 15000, 5 * 60 * 1000);
 
         this.refreshTimer = new Timer();
