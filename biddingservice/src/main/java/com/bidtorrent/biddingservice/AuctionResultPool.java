@@ -11,6 +11,8 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Queue;
+import java.util.Timer;
+import java.util.TimerTask;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -22,8 +24,10 @@ public class AuctionResultPool {
     private final Function<BidOpportunity, Future<AuctionResult>> auctionRunner;
     private final PoolSizer poolSizer;
     private final int maxWaitingTimeMs;
+    private final int bidExpirationTimeMs;
     private final Map<BidOpportunity, Queue<PoolItem>> resultsPools;
     private final Map<BidOpportunity, Queue<WaitingClient>> waitingClients;
+    private final Timer refreshTimer;
 
     /**
      *
@@ -35,14 +39,23 @@ public class AuctionResultPool {
     public AuctionResultPool(
             Function<BidOpportunity, Future<AuctionResult>> auctionRunner,
             PoolSizer poolSizer,
-            int maxWaitingTimeMs)
+            int maxWaitingTimeMs,
+            int bidExpirationTimeMs)
     {
         this.auctionRunner = auctionRunner;
         this.poolSizer = poolSizer;
         this.maxWaitingTimeMs = maxWaitingTimeMs;
+        this.bidExpirationTimeMs = bidExpirationTimeMs;
         this.resultsPools = new HashMap<>();
         this.waitingClients = new HashMap<>();
         this.threadPool = Executors.newCachedThreadPool();
+        this.refreshTimer = new Timer();
+        this.refreshTimer.schedule(new TimerTask() {
+            @Override
+            public void run() {
+                fillPools();
+            }
+        }, bidExpirationTimeMs, bidExpirationTimeMs);
     }
 
     public void getAuctionResult(BidOpportunity bidOpportunity, Predicate<Future<AuctionResult>> cb)
@@ -65,6 +78,12 @@ public class AuctionResultPool {
         this.fillPools(bidOpportunity);
     }
 
+    private void fillPools()
+    {
+        for (BidOpportunity opp: this.waitingClients.keySet())
+            this.fillPools(opp);
+    }
+
     private void fillPools(final BidOpportunity bidOpportunity)
     {
         this.threadPool.submit(new Runnable() {
@@ -76,7 +95,7 @@ public class AuctionResultPool {
                 while (poolItems.size() < poolSizer.getPoolSize()) {
                     Calendar cal = Calendar.getInstance();
 
-                    cal.add(Calendar.DATE, 1);
+                    cal.add(Calendar.MILLISECOND, bidExpirationTimeMs);
                     poolItems.add(new PoolItem(cal.getTime(), auctionRunner.apply(bidOpportunity)));
                     triggerAuctionAvailableEvent(bidOpportunity);
                 }
