@@ -29,6 +29,7 @@ public class AuctionActivity extends ActionBarActivity {
                 Bundle extras = intent.getExtras();
 
                 debugView.append(String.format(Locale.getDefault(), "Price: %.2f\n", extras.getFloat("price")));
+                debugView.append(String.format(Locale.getDefault(), "BiddingPrice: %.2f\n", extras.getFloat("biddingPrice")));
             }
         };
     }
@@ -75,4 +76,5 @@ public class AuctionActivity extends ActionBarActivity {
 
         this.debugView.setText("Running the auction...\n");
     }
+
 }

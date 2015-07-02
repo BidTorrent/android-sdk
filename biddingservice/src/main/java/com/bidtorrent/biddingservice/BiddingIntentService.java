@@ -2,13 +2,12 @@ package com.bidtorrent.biddingservice;
 
 import android.app.IntentService;
 import android.content.Intent;
-import android.util.Log;
 
 import com.bidtorrent.bidding.Auction;
 import com.bidtorrent.bidding.AuctionResult;
 import com.bidtorrent.bidding.Auctioneer;
 import com.bidtorrent.bidding.BidOpportunity;
-import com.bidtorrent.bidding.BidResponse;
+import com.bidtorrent.bidding.messages.BidResponse;
 import com.bidtorrent.bidding.BidderConfiguration;
 import com.bidtorrent.bidding.BidderConfigurationFilters;
 import com.bidtorrent.bidding.BidderSelector;
@@ -53,7 +52,7 @@ public class BiddingIntentService extends IntentService {
                 new String[0],
                 "FR",
                 "EUR",
-                0.2f,
+                0.02f,
                 1000,
                 50000,
                 5);
@@ -66,33 +65,18 @@ public class BiddingIntentService extends IntentService {
         this.selector = new BidderSelector(publisherConfiguration);
 
         //FIXME: Poll real bidders
-        this.selector.addBidder(
-                new BidderConfiguration("http://adlb.me/bidder/bid.php?bidder=pony",
-                        new BidderConfigurationFilters(
-                                1f,
-                                new ArrayList<String>(),
-                                new ArrayList<String>(),
-                                new ArrayList<String>(),
-                                new ArrayList<String>(),
-                                new ArrayList<String>(),
-                                new ArrayList<String>(),
-                                new ArrayList<String>()
-                                ),
-                        "ssh-rsa ...."));
-
-        this.selector.addBidder(
-                new BidderConfiguration("http://adlb.me/bidder/bid.php?bidder=criteo",
-                        new BidderConfigurationFilters(
-                                1f,
-                                new ArrayList<String>(),
-                                new ArrayList<String>(),
-                                new ArrayList<String>(),
-                                new ArrayList<String>(),
-                                new ArrayList<String>(),
-                                new ArrayList<String>(),
-                                new ArrayList<String>()
-                        ),
-                        "ssh-rsa ...."));
+        this.selector.addBidder(new BidderConfiguration("http://bidder.bidtorrent.io/criteoBid.php",
+                new BidderConfigurationFilters(
+                        1f,
+                        new ArrayList<String>(),
+                        new ArrayList<String>(),
+                        new ArrayList<String>(),
+                        new ArrayList<String>(),
+                        new ArrayList<String>(),
+                        new ArrayList<String>(),
+                        new ArrayList<String>()
+                ),
+                "ssh-rsa ...."));
     }
 
     private Future<AuctionResult> runAuction(BidOpportunity bidOpportunity)
@@ -101,8 +85,8 @@ public class BiddingIntentService extends IntentService {
 
         bidders = new ArrayList<>();
 
-        bidders.add(new ConstantBidder(4, new BidResponse(4, 0.2f, 1, "", "CREATIVE", "NOTIFYME")));
-        bidders.add(new ConstantBidder(3, new BidResponse(3, 0.3f, 1, "", "CREATIVETHESHIT", "NOTIFYMENOT")));
+        bidders.add(new ConstantBidder(4, new BidResponse(4, 0.02f, 1, "", "CREATIVE", "NOTIFYME")));
+        bidders.add(new ConstantBidder(3, new BidResponse(3, 0.03f, 1, "", "CREATIVETHESHIT", "NOTIFYMENOT")));
 
         for (BidderConfiguration config : this.selector.getAvailableBidders()){
             bidders.add(new HttpBidder(
@@ -113,7 +97,7 @@ public class BiddingIntentService extends IntentService {
                     this.publisherConfiguration.getSoftTimeout()));
         }
 
-        return this.auctioneer.runAuction(new Auction(bidOpportunity, bidders, 0.5f));
+        return this.auctioneer.runAuction(new Auction(bidOpportunity, bidders, this.publisherConfiguration.getFloor()));
     }
 
     private void notifyFailure(String errorMsg)
@@ -129,6 +113,7 @@ public class BiddingIntentService extends IntentService {
     {
         Intent responseAvailableIntent = new Intent(AUCTION_RESULT_AVAILABLE);
 
+        responseAvailableIntent.putExtra("biddingPrice", auctionResult.getWinningBid().getPrice());
         responseAvailableIntent.putExtra("price", auctionResult.getWinningPrice());
 
         if (auctionResult.getWinningBid() != null){

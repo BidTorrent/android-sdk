@@ -1,5 +1,7 @@
 package com.bidtorrent.bidding;
 
+import com.bidtorrent.bidding.messages.BidResponse;
+
 import java.util.concurrent.Callable;
 
 public class ConstantBidder implements IBidder {

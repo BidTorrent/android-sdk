@@ -1,7 +1,8 @@
 package com.bidtorrent.bidding;
 
+import com.bidtorrent.bidding.messages.BidResponse;
+
 import java.util.Collection;
-import java.util.List;
 
 public class AuctionResult {
     private IBidder winningBidder;

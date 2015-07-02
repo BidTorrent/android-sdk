@@ -1,30 +1,31 @@
-package com.bidtorrent.bidding;
+package com.bidtorrent.bidding.messages;
+
+import java.util.ArrayList;
 
 public class BidResponse implements Comparable  {
 
-    private long bidderId;
-    private final Float price;
-    private final Integer bidId;
-    private final String domain;
-    private final String creative;
-    private final String notify;
+    public long bidderId;
+    public String id;
+    public String cur;
+    public ArrayList<Seatbid> seatbid;
 
     public BidResponse(long bidderId, float bidPrice, int bidId, String domain, String creative, String notificationUrl) {
         this.bidderId = bidderId;
-        this.price = bidPrice;
-        this.bidId = bidId;
-        this.domain = domain;
-        this.creative = creative;
-        this.notify = notificationUrl;
+        Bid bid = new Bid("" + bidId, "", bidPrice, "", notificationUrl, domain, "");
+        this.seatbid = new ArrayList<>(1);
+        this.seatbid.add(new Seatbid(bid));
     }
+
+
 
     public boolean isValid()
     {
-        return price != null && creative != null && notify != null;
+        Bid bid = this.seatbid.get(0).bid.get(0);
+        return  bid != null;
     }
 
     public float getPrice() {
-        return price;
+        return this.seatbid.get(0).bid.get(0).price;
     }
 
     public long getBidderId() {
@@ -39,24 +40,24 @@ public class BidResponse implements Comparable  {
     public int compareTo(Object o) {
         BidResponse s = (BidResponse) o;
 
-        if (s.price < this.price)
+        if (s.getPrice() < this.getPrice())
             return -1;
 
-        if (s.price > this.price)
+        if (s.getPrice() > this.getPrice())
             return 1;
 
         return 0;
     }
 
     public String buildNotificationUrl(String requestId, String impId, long runnerUpId){
-        if (this.notify == null || this.notify.equals(""))
+        if (this.seatbid.get(0).bid.get(0).nurl == null || this.seatbid.get(0).bid.get(0).nurl.equals(""))
             return null;
 
-        return this.notify
+        return this.seatbid.get(0).bid.get(0).nurl
                 .replaceAll("\\$\\{AUCTION_ID\\}", requestId)
-                .replaceAll("\\$\\{AUCTION_BID_ID\\}", "" + this.bidId)
+                .replaceAll("\\$\\{AUCTION_BID_ID\\}", "" + this.seatbid.get(0).bid.get(0).id)
                 .replaceAll("\\$\\{AUCTION_IMP_ID\\}", impId)
-                .replaceAll("\\$\\{AUCTION_PRICE\\}", String.format("%.2f", this.price))
+                .replaceAll("\\$\\{AUCTION_PRICE\\}", String.format("%.2f", this.seatbid.get(0).bid.get(0).price))
                 .replaceAll("\\$\\{AUCTION_RUNNER_UP\\}", "" + runnerUpId);
     }
 }
