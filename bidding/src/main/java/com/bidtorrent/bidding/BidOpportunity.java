@@ -22,4 +22,25 @@ public class BidOpportunity {
     public int getHeight() {
         return height;
     }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+
+        BidOpportunity that = (BidOpportunity) o;
+
+        if (width != that.width) return false;
+        if (height != that.height) return false;
+        return !(appName != null ? !appName.equals(that.appName) : that.appName != null);
+
+    }
+
+    @Override
+    public int hashCode() {
+        int result = width;
+        result = 31 * result + height;
+        result = 31 * result + (appName != null ? appName.hashCode() : 0);
+        return result;
+    }
 }

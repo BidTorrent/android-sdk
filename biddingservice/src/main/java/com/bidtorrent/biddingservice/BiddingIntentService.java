@@ -34,7 +34,7 @@ import java.util.concurrent.TimeUnit;
 
 import javax.annotation.Nullable;
 
-public class BiddingIntentService extends IntentService {
+public class BiddingIntentService extends LongLivedService {
     public static String AUCTION_RESULT_AVAILABLE = "Manitralalala";
     public static String AUCTION_FAILED = "Manitrololol";
     public static String REQUEST_ARG_NAME = "rq";
@@ -47,8 +47,10 @@ public class BiddingIntentService extends IntentService {
     private PublisherConfiguration publisherConfiguration;
     private Notificator notificator;
 
-    public BiddingIntentService() {
-        super("BidTorrent bidding service");
+    @Override
+    public int onStartCommand(Intent intent, int flags, int startId) {
+        super.onStartCommand(intent, flags, startId);
+        return START_STICKY;
     }
 
     @Override
@@ -115,7 +117,7 @@ public class BiddingIntentService extends IntentService {
                     }
                 },
                 new PoolSizer(
-                        (ConnectivityManager)this.getSystemService(Context.CONNECTIVITY_SERVICE), 1, 1));
+                        (ConnectivityManager)this.getSystemService(Context.CONNECTIVITY_SERVICE), 3, 5));
     }
 
     private void runAuction(BidOpportunity bidOpportunity)
