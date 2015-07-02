@@ -117,7 +117,8 @@ public class BiddingIntentService extends LongLivedService {
                     }
                 },
                 new PoolSizer(
-                        (ConnectivityManager)this.getSystemService(Context.CONNECTIVITY_SERVICE), 3, 5));
+                    (ConnectivityManager)this.getSystemService(Context.CONNECTIVITY_SERVICE), 3, 5),
+                15000);
     }
 
     private void runAuction(BidOpportunity bidOpportunity)

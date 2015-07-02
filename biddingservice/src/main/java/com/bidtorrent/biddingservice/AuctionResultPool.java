@@ -5,6 +5,7 @@ import com.bidtorrent.bidding.BidOpportunity;
 import com.google.common.base.Function;
 import com.google.common.base.Predicate;
 
+import java.util.AbstractMap;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.HashMap;
@@ -18,22 +19,30 @@ import java.util.concurrent.LinkedBlockingQueue;
 
 public class AuctionResultPool {
     private final ExecutorService threadPool;
-    private Function<BidOpportunity, Future<AuctionResult>> auctionRunner;
-    private PoolSizer poolSizer;
-    private Map<BidOpportunity, Queue<PoolItem>> resultsPools;
-    private Map<BidOpportunity, Queue<Predicate<Future<AuctionResult>>>> waitingClients;
-    private Map<BidOpportunity, Future> currentTasks;
+    private final Function<BidOpportunity, Future<AuctionResult>> auctionRunner;
+    private final PoolSizer poolSizer;
+    private final int maxWaitingTimeMs;
+    private final Map<BidOpportunity, Queue<PoolItem>> resultsPools;
+    private final Map<BidOpportunity, Queue<WaitingClient>> waitingClients;
 
+    /**
+     *
+     * @param auctionRunner
+     * @param poolSizer
+     * @param maxWaitingTimeMs Maximum amount of time during which a bid request could be waiting
+     *                         in the queue without anything happening.
+     */
     public AuctionResultPool(
             Function<BidOpportunity, Future<AuctionResult>> auctionRunner,
-            PoolSizer poolSizer)
+            PoolSizer poolSizer,
+            int maxWaitingTimeMs)
     {
         this.auctionRunner = auctionRunner;
         this.poolSizer = poolSizer;
+        this.maxWaitingTimeMs = maxWaitingTimeMs;
         this.resultsPools = new HashMap<>();
         this.waitingClients = new HashMap<>();
         this.threadPool = Executors.newCachedThreadPool();
-        this.currentTasks = new ConcurrentHashMap<>();
     }
 
     public void getAuctionResult(BidOpportunity bidOpportunity, Predicate<Future<AuctionResult>> cb)
@@ -45,16 +54,19 @@ public class AuctionResultPool {
 
         synchronized (this.waitingClients) {
             if (!this.waitingClients.containsKey(bidOpportunity))
-                this.waitingClients.put(bidOpportunity, new LinkedBlockingQueue<Predicate<Future<AuctionResult>>>());
+                this.waitingClients.put(bidOpportunity, new LinkedBlockingQueue<WaitingClient>());
         }
 
-        this.waitingClients.get(bidOpportunity).add(cb);
+        Calendar cal = Calendar.getInstance();
+
+        cal.add(Calendar.MILLISECOND, this.maxWaitingTimeMs);
+
+        this.waitingClients.get(bidOpportunity).add(new WaitingClient(cal.getTime(), cb));
         this.fillPools(bidOpportunity);
     }
 
     private void fillPools(final BidOpportunity bidOpportunity)
     {
-
         this.threadPool.submit(new Runnable() {
             @Override
             public void run() {
@@ -63,6 +75,7 @@ public class AuctionResultPool {
                 poolItems = resultsPools.get(bidOpportunity);
                 while (poolItems.size() < poolSizer.getPoolSize()) {
                     Calendar cal = Calendar.getInstance();
+
                     cal.add(Calendar.DATE, 1);
                     poolItems.add(new PoolItem(cal.getTime(), auctionRunner.apply(bidOpportunity)));
                     triggerAuctionAvailableEvent(bidOpportunity);
@@ -74,14 +87,28 @@ public class AuctionResultPool {
     }
 
     private void triggerAuctionAvailableEvent(BidOpportunity opportunity) {
-        Queue<Predicate<Future<AuctionResult>>> opportunityWaitingClients;
+        Queue<WaitingClient> opportunityWaitingClients;
 
         opportunityWaitingClients = this.waitingClients.get(opportunity);
 
         synchronized (opportunityWaitingClients) {
-            while (!this.waitingClients.get(opportunity).isEmpty()) {
-                Predicate<Future<AuctionResult>> waitingClient;
+            while (!opportunityWaitingClients.isEmpty()) {
+                WaitingClient nextClient = null;
                 PoolItem paul;
+
+                while (!opportunityWaitingClients.isEmpty())
+                {
+                    nextClient = opportunityWaitingClients.peek();
+
+                    if (nextClient == null || !nextClient.isExpired())
+                        break;
+
+                    nextClient = null;
+                    opportunityWaitingClients.poll();
+                }
+
+                if (nextClient == null)
+                    return;
 
                 do {
                     paul = this.resultsPools.get(opportunity).poll();
@@ -91,8 +118,8 @@ public class AuctionResultPool {
                 if (paul == null)
                     break;
 
-                waitingClient = this.waitingClients.get(opportunity).poll();
-                waitingClient.apply(paul.getResult());
+                opportunityWaitingClients.poll();
+                nextClient.getCallback().apply(paul.getResult());
             }
         }
     }
@@ -108,6 +135,29 @@ public class AuctionResultPool {
 
         public Future<AuctionResult> getResult() {
             return result;
+        }
+
+        public boolean isExpired(){
+            return expirationDate.before(new Date());
+        }
+    }
+
+    private class WaitingClient
+    {
+        private final Date expirationDate;
+        private final Predicate<Future<AuctionResult>> callback;
+
+        private WaitingClient(Date expirationDate, Predicate<Future<AuctionResult>> callback) {
+            this.expirationDate = expirationDate;
+            this.callback = callback;
+        }
+
+        public Date getExpirationDate() {
+            return expirationDate;
+        }
+
+        public Predicate<Future<AuctionResult>> getCallback() {
+            return callback;
         }
 
         public boolean isExpired(){
