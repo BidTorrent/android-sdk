@@ -27,7 +27,6 @@ public class AuctionResultPool {
     private final int bidExpirationTimeMs;
     private final Map<BidOpportunity, Queue<PoolItem>> resultsPools;
     private final Map<BidOpportunity, Queue<WaitingClient>> waitingClients;
-    private final Timer refreshTimer;
 
     /**
      *
@@ -49,13 +48,6 @@ public class AuctionResultPool {
         this.resultsPools = new HashMap<>();
         this.waitingClients = new HashMap<>();
         this.threadPool = Executors.newCachedThreadPool();
-        this.refreshTimer = new Timer();
-        this.refreshTimer.schedule(new TimerTask() {
-            @Override
-            public void run() {
-                fillPools();
-            }
-        }, bidExpirationTimeMs, bidExpirationTimeMs);
     }
 
     public void getAuctionResult(BidOpportunity bidOpportunity, Predicate<Future<AuctionResult>> cb)
@@ -78,7 +70,7 @@ public class AuctionResultPool {
         this.fillPools(bidOpportunity);
     }
 
-    private void fillPools()
+    public void fillPools()
     {
         for (BidOpportunity opp: this.waitingClients.keySet())
             this.fillPools(opp);
@@ -92,12 +84,15 @@ public class AuctionResultPool {
                 Queue<PoolItem> poolItems;
 
                 poolItems = resultsPools.get(bidOpportunity);
-                while (poolItems.size() < poolSizer.getPoolSize()) {
-                    Calendar cal = Calendar.getInstance();
 
-                    cal.add(Calendar.MILLISECOND, bidExpirationTimeMs);
-                    poolItems.add(new PoolItem(cal.getTime(), auctionRunner.apply(bidOpportunity)));
-                    triggerAuctionAvailableEvent(bidOpportunity);
+                synchronized (poolItems) {
+                    while (poolItems.size() < poolSizer.getPoolSize()) {
+                        Calendar cal = Calendar.getInstance();
+
+                        cal.add(Calendar.MILLISECOND, bidExpirationTimeMs);
+                        poolItems.add(new PoolItem(cal.getTime(), auctionRunner.apply(bidOpportunity)));
+                        triggerAuctionAvailableEvent(bidOpportunity);
+                    }
                 }
 
                 triggerAuctionAvailableEvent(bidOpportunity);

@@ -1,8 +1,9 @@
 package com.bidtorrent.biddingservice;
 
-import android.app.IntentService;
+import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.net.ConnectivityManager;
 
 import com.bidtorrent.bidding.Auction;
@@ -27,6 +28,8 @@ import com.google.gson.GsonBuilder;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Timer;
+import java.util.TimerTask;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -46,6 +49,7 @@ public class BiddingIntentService extends LongLivedService {
     private BidderSelector selector;
     private PublisherConfiguration publisherConfiguration;
     private Notificator notificator;
+    private Timer refreshTimer;
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
@@ -119,6 +123,21 @@ public class BiddingIntentService extends LongLivedService {
                 new PoolSizer(
                     (ConnectivityManager)this.getSystemService(Context.CONNECTIVITY_SERVICE), 3, 5),
                 15000, 5 * 60 * 1000);
+
+        this.refreshTimer = new Timer();
+        this.refreshTimer.schedule(new TimerTask() {
+            @Override
+            public void run() {
+                resultsPool.fillPools();
+            }
+        }, 0, 5 * 60 * 1000);
+
+        registerReceiver(new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context context, Intent intent) {
+                resultsPool.fillPools();
+            }
+        }, new IntentFilter(ConnectivityManager.CONNECTIVITY_ACTION));
     }
 
     private void runAuction(BidOpportunity bidOpportunity)
