@@ -78,7 +78,7 @@ public class BiddingIntentService extends LongLivedService {
         this.auctioneer = new Auctioneer(
                 publisherConfiguration.getSoftTimeout(),
                 Executors.newCachedThreadPool());
-        this.notificator = new Notificator(10000);
+        this.notificator = new Notificator(10000, null);
 
         this.selector = new BidderSelector(publisherConfiguration);
 
@@ -112,7 +112,7 @@ public class BiddingIntentService extends LongLivedService {
                             bidders.add(new HttpBidder(
                                     1,
                                     "Kitten",
-                                    URI.create(config.getEndPoint()),
+                                    config.getEndPoint(),
                                     new JsonResponseConverter(),
                                     publisherConfiguration.getSoftTimeout()));
                         }

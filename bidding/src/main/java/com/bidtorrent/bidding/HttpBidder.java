@@ -40,31 +40,15 @@ import java.util.concurrent.Callable;
 public class HttpBidder implements IBidder{
     private long id;
     private final String name;
-    private final URI bidUri;
-    private final IResponseConverter<String> responseConverter;
-    private ClientConnectionManager connectionManager;
-    private HttpParams httpParameters;
-    private Gson gson;
+    private final String bidUrl;
+    private final PooledHttpClient pooledHttpClient;
 
-
-    public HttpBidder(long id, String name, URI bidUri, IResponseConverter<String> responseConverter, int timeout)
+    public HttpBidder(long id, String name, String bidUrl, IResponseConverter<String> responseConverter, int timeout)
     {
         this.id = id;
         this.name = name;
-        this.bidUri = bidUri;
-        this.responseConverter = responseConverter;
-        this.httpParameters = new BasicHttpParams();
-
-        gson = new GsonBuilder().create();
-
-        httpParameters = new BasicHttpParams();
-        // Set the default socket timeout (SO_TIMEOUT)
-        // in milliseconds which is the timeout for waiting for data.
-        HttpConnectionParams.setSoTimeout(httpParameters, timeout);
-        SchemeRegistry schemeRegistry = new SchemeRegistry();
-
-        schemeRegistry.register(new Scheme("http", PlainSocketFactory.getSocketFactory(), 80));
-        this.connectionManager = new ThreadSafeClientConnManager(httpParameters, schemeRegistry);
+        this.bidUrl = bidUrl;
+        this.pooledHttpClient = new PooledHttpClient(timeout);
     }
 
     public static String getLocalIpAddress()
@@ -104,55 +88,12 @@ public class HttpBidder implements IBidder{
         );
     }
 
-    public String getBidJson(BidOpportunity bidOpportunity){
-        BidRequest bidRequest = createBidRequest(bidOpportunity);
-        return gson.toJson(bidRequest);
-    }
-
     @Override
-    public Callable<BidResponse> bid(BidOpportunity opportunity, IErrorCallback errorCallback) {
+    public Callable<BidResponse> bid(final BidOpportunity opportunity, IErrorCallback errorCallback) {
         return new Callable<BidResponse>() {
             @Override
             public BidResponse call() {
-                final HttpPost httpPost = new HttpPost(bidUri);
-                try {
-                    StringEntity postJson = new StringEntity(getBidJson(null));
-                    postJson.setContentType("application/json");
-                    httpPost.setEntity(postJson);
-                } catch (UnsupportedEncodingException e) {
-                    //TODO: log here
-                }
-
-
-                //FIXME: To remove, no cookie should be sent inapp
-                BasicCookieStore cookieStore = new BasicCookieStore();
-                BasicClientCookie ids = new BasicClientCookie("Ids", "a%3A1%3A%7Bi%3A42%3Bs%3A36%3A%226024c0db-5907-4d5c-b43f-da5d7d8a3035%22%3B%7D");
-                ids.setDomain("bidtorrent.io");
-                ids.setPath("/");
-                cookieStore.addCookie(ids);
-
-                final DefaultHttpClient httpClient;
-                httpClient = new DefaultHttpClient(connectionManager, httpParameters);
-
-                httpClient.setCookieStore(cookieStore);
-                org.apache.http.HttpResponse response = null;
-                try {
-                    response = httpClient.execute(httpPost);
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
-
-                BidResponse bidResponse = null;
-
-                if (response != null && response.getEntity() != null) {
-                    try {
-                        bidResponse = responseConverter.convert(new String(ByteStreams.toByteArray(response.getEntity().getContent())), id);
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
-                }
-
-                return bidResponse;
+                return pooledHttpClient.jsonPost(bidUrl, createBidRequest(opportunity), BidResponse.class);
             }
         };
     }
