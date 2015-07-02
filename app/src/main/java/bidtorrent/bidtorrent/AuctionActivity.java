@@ -21,6 +21,8 @@ import java.util.Locale;
 public class AuctionActivity extends ActionBarActivity {
     private Button bidButton;
     private TextView debugView;
+    private BroadcastReceiver bidAvailableReceiver;
+    private BroadcastReceiver auctionErrorReceiver;
 
     private BroadcastReceiver createBidAvailableReceiver()
     {
@@ -61,8 +63,18 @@ public class AuctionActivity extends ActionBarActivity {
                 runAuction();
             }
         });
-        registerReceiver(this.createBidAvailableReceiver(), new IntentFilter(BiddingIntentService.AUCTION_RESULT_AVAILABLE));
-        registerReceiver(this.createAuctionErrorReceiver(), new IntentFilter(BiddingIntentService.AUCTION_FAILED));
+
+        this.auctionErrorReceiver = this.createAuctionErrorReceiver();
+        this.bidAvailableReceiver = this.createBidAvailableReceiver();
+        registerReceiver(this.bidAvailableReceiver, new IntentFilter(BiddingIntentService.AUCTION_RESULT_AVAILABLE));
+        registerReceiver(this.auctionErrorReceiver , new IntentFilter(BiddingIntentService.AUCTION_FAILED));
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        this.unregisterReceiver(bidAvailableReceiver);
+        this.unregisterReceiver(auctionErrorReceiver);
     }
 
     private void runAuction()
