@@ -133,9 +133,19 @@ public class AuctionResultPool {
                     break;
 
                 opportunityWaitingClients.poll();
-                nextClient.getCallback().apply(paul.getResult());
+
+                this.runClient(nextClient, paul);
             }
         }
+    }
+
+    private void runClient(final WaitingClient client, final PoolItem paul) {
+        this.threadPool.submit(new Runnable() {
+            @Override
+            public void run() {
+                client.getCallback().apply(paul.getResult());
+            }
+        });
     }
 
     private class PoolItem {
@@ -164,10 +174,6 @@ public class AuctionResultPool {
         private WaitingClient(Date expirationDate, Predicate<Future<AuctionResult>> callback) {
             this.expirationDate = expirationDate;
             this.callback = callback;
-        }
-
-        public Date getExpirationDate() {
-            return expirationDate;
         }
 
         public Predicate<Future<AuctionResult>> getCallback() {
