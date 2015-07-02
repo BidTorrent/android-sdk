@@ -1,7 +1,9 @@
 package com.bidtorrent.biddingservice;
 
 import android.app.IntentService;
+import android.content.Context;
 import android.content.Intent;
+import android.net.ConnectivityManager;
 
 import com.bidtorrent.bidding.Auction;
 import com.bidtorrent.bidding.AuctionResult;
@@ -17,6 +19,8 @@ import com.bidtorrent.bidding.IBidder;
 import com.bidtorrent.bidding.JsonResponseConverter;
 import com.bidtorrent.bidding.Notificator;
 import com.bidtorrent.bidding.PublisherConfiguration;
+import com.google.common.base.Function;
+import com.google.common.base.Predicate;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 
@@ -28,20 +32,28 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
+import javax.annotation.Nullable;
+
 public class BiddingIntentService extends IntentService {
     public static String AUCTION_RESULT_AVAILABLE = "Manitralalala";
     public static String AUCTION_FAILED = "Manitrololol";
     public static String REQUEST_ARG_NAME = "rq";
     public static String AUCTION_ERROR_REASON_ARG = "reason";
 
-    private final ExecutorService executor;
-    private final Auctioneer auctioneer;
+    private ExecutorService executor;
+    private Auctioneer auctioneer;
+    private AuctionResultPool resultsPool;
     private BidderSelector selector;
     private PublisherConfiguration publisherConfiguration;
-    private final Notificator notificator;
+    private Notificator notificator;
 
     public BiddingIntentService() {
         super("BidTorrent bidding service");
+    }
+
+    @Override
+    public void onCreate() {
+        super.onCreate();
         this.executor = Executors.newCachedThreadPool();
 
         //FIXME: Poll real configuration
@@ -77,27 +89,52 @@ public class BiddingIntentService extends IntentService {
                         new ArrayList<String>()
                 ),
                 "ssh-rsa ...."));
+
+        this.resultsPool = new AuctionResultPool(
+                new Function<BidOpportunity, Future<AuctionResult>>() {
+                    @Nullable
+                    @Override
+                    public Future<AuctionResult> apply(@Nullable BidOpportunity bidOpportunity) {
+                        List<IBidder> bidders;
+
+                        bidders = new ArrayList<>();
+
+                        bidders.add(new ConstantBidder(4, new BidResponse(4, 0.02f, 1, "", "CREATIVE", "NOTIFYME")));
+                        bidders.add(new ConstantBidder(3, new BidResponse(3, 0.03f, 1, "", "CREATIVETHESHIT", "NOTIFYMENOT")));
+
+                        for (BidderConfiguration config : selector.getAvailableBidders()){
+                            bidders.add(new HttpBidder(
+                                    1,
+                                    "Kitten",
+                                    URI.create(config.getEndPoint()),
+                                    new JsonResponseConverter(),
+                                    publisherConfiguration.getSoftTimeout()));
+                        }
+
+                        return auctioneer.runAuction(new Auction(bidOpportunity, bidders, 0.02f));
+                    }
+                },
+                new PoolSizer(
+                        (ConnectivityManager)this.getSystemService(Context.CONNECTIVITY_SERVICE), 1, 1));
     }
 
-    private Future<AuctionResult> runAuction(BidOpportunity bidOpportunity)
+    private void runAuction(BidOpportunity bidOpportunity)
     {
-        List<IBidder> bidders;
+        this.resultsPool.getAuctionResult(bidOpportunity, new Predicate<Future<AuctionResult>>() {
+            @Override
+            public boolean apply(@Nullable Future<AuctionResult> input) {
+                AuctionResult auctionResult;
 
-        bidders = new ArrayList<>();
+                try {
+                    auctionResult = input.get(10000, TimeUnit.MILLISECONDS);
+                    notifySuccess(auctionResult);
+                } catch (Exception e) {
+                    notifyFailure("Auction reached the timeout w/o returning any bid");
+                }
 
-        bidders.add(new ConstantBidder(4, new BidResponse(4, 0.02f, 1, "", "CREATIVE", "NOTIFYME")));
-        bidders.add(new ConstantBidder(3, new BidResponse(3, 0.03f, 1, "", "CREATIVETHESHIT", "NOTIFYMENOT")));
-
-        for (BidderConfiguration config : this.selector.getAvailableBidders()){
-            bidders.add(new HttpBidder(
-                    1,
-                    "Kitten",
-                    URI.create(config.getEndPoint()),
-                    new JsonResponseConverter(),
-                    this.publisherConfiguration.getSoftTimeout()));
-        }
-
-        return this.auctioneer.runAuction(new Auction(bidOpportunity, bidders, this.publisherConfiguration.getFloor()));
+                return true;
+            }
+        });
     }
 
     private void notifyFailure(String errorMsg)
@@ -130,7 +167,6 @@ public class BiddingIntentService extends IntentService {
         this.executor.submit(new Runnable() {
             @Override
             public void run() {
-                Future<AuctionResult> auctionResultFuture;
                 AuctionResult auctionResult = null;
                 BidOpportunity bidOpportunity;
                 Gson gson;
@@ -146,14 +182,7 @@ public class BiddingIntentService extends IntentService {
                     return;
                 }
 
-                auctionResultFuture = runAuction(bidOpportunity);
-                try {
-                    auctionResult = auctionResultFuture.get(10000, TimeUnit.MILLISECONDS);
-                } catch (Exception e) {
-                    notifyFailure("Auction reached the timeout w/o returning any bid");
-                }
-
-                notifySuccess(auctionResult);
+                runAuction(bidOpportunity);
             }
         });
     }

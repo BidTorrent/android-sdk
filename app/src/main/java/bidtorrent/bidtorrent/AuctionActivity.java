@@ -11,6 +11,7 @@ import android.widget.Button;
 import android.widget.TextView;
 
 import com.bidtorrent.bidding.BidOpportunity;
+import com.bidtorrent.bidding.Size;
 import com.bidtorrent.biddingservice.BiddingIntentService;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -70,7 +71,7 @@ public class AuctionActivity extends ActionBarActivity {
         Gson gson;
         BidOpportunity opp;
 
-        opp = new BidOpportunity(300, 250, "bidtorrent.dummy.app");
+        opp = new BidOpportunity(new Size(300, 250), "bidtorrent.dummy.app");
         gson = new GsonBuilder().create();
         startService(auctionIntent.putExtra(BiddingIntentService.REQUEST_ARG_NAME, gson.toJson(opp)));
 

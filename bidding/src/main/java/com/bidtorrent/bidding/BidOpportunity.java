@@ -7,9 +7,7 @@ public class BidOpportunity {
     private int height;
     private String appName;
 
-    public BidOpportunity(int width, int height, String appName) {
-        this.width = width;
-        this.height = height;
+    public BidOpportunity(Size size, String appName) {
         this.appName = appName;
     }
 
