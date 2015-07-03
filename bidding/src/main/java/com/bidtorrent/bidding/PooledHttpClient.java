@@ -23,6 +23,7 @@ import org.apache.http.params.HttpParams;
 
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
+import java.lang.reflect.Type;
 
 public class PooledHttpClient {
 
@@ -72,6 +73,18 @@ public class PooledHttpClient {
         String jsonString = doGet(url);
         if (jsonString == null) return null;
         return this.gson.fromJson(jsonString, type);
+    }
+
+    public <T>T jsonGet(String url, Type type){
+        this.gson = new GsonBuilder().create();
+        String jsonString = doGet(url);
+        if (jsonString == null) return null;
+        try {
+            return this.gson.fromJson(jsonString, type);
+        } catch (Exception e){
+            e.printStackTrace();
+            return null;
+        }
     }
 
     public <U,V>V jsonPost(String url, U request, Class<V> responseType){

@@ -1,4 +1,4 @@
-package com.bidtorrent.bidding;
+package com.bidtorrent.bidding.messages.configuration;
 
 import java.util.Collection;
 
@@ -7,23 +7,23 @@ import java.util.Collection;
  */
 public class BidderConfigurationFilters {
     private float sampling;
-    private Collection<String> countriesBlacklist;
-    private Collection<String> countriesWhitelist;
-    private Collection<String> languagesBlacklist;
-    private Collection<String> languagesWhitelist;
-    private Collection<String> categoriesBlacklist;
-    private Collection<String> categoriesWhitelist;
-    private Collection<String> publishersBlacklist;
+    private Collection<String> ctry_bl;
+    private Collection<String> ctry_wl;
+    private Collection<String> lang_bl;
+    private Collection<String> lang_wl;
+    private Collection<String> cat_bl;
+    private Collection<String> cat_wl;
+    private Collection<String> pub;
 
     public BidderConfigurationFilters(float sampling, Collection<String> countriesBlacklist, Collection<String> countriesWhitelist, Collection<String> languagesBlacklist, Collection<String> languagesWhitelist, Collection<String> categoriesBlacklist, Collection<String> categoriesWhitelist, Collection<String> publishersBlacklist) {
         this.sampling = sampling;
-        this.countriesBlacklist = countriesBlacklist;
-        this.countriesWhitelist = countriesWhitelist;
-        this.languagesBlacklist = languagesBlacklist;
-        this.languagesWhitelist = languagesWhitelist;
-        this.categoriesBlacklist = categoriesBlacklist;
-        this.categoriesWhitelist = categoriesWhitelist;
-        this.publishersBlacklist = publishersBlacklist;
+        this.ctry_bl = countriesBlacklist;
+        this.ctry_wl = countriesWhitelist;
+        this.lang_bl = languagesBlacklist;
+        this.lang_wl = languagesWhitelist;
+        this.cat_bl = categoriesBlacklist;
+        this.cat_wl = categoriesWhitelist;
+        this.pub = publishersBlacklist;
     }
 
     public float getSampling() {
@@ -31,30 +31,30 @@ public class BidderConfigurationFilters {
     }
 
     public Collection<String> getCountriesBlacklist() {
-        return countriesBlacklist;
+        return ctry_bl;
     }
 
     public Collection<String> getCountriesWhitelist() {
-        return countriesWhitelist;
+        return ctry_wl;
     }
 
     public Collection<String> getLanguagesBlacklist() {
-        return languagesBlacklist;
+        return lang_bl;
     }
 
     public Collection<String> getLanguagesWhitelist() {
-        return languagesWhitelist;
+        return lang_wl;
     }
 
     public Collection<String> getCategoriesBlacklist() {
-        return categoriesBlacklist;
+        return cat_bl;
     }
 
     public Collection<String> getCategoriesWhitelist() {
-        return categoriesWhitelist;
+        return cat_wl;
     }
 
     public Collection<String> getPublishersBlacklist() {
-        return publishersBlacklist;
+        return pub;
     }
 }

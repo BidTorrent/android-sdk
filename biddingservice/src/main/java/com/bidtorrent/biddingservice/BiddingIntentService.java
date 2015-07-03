@@ -13,8 +13,7 @@ import com.bidtorrent.bidding.Auctioneer;
 import com.bidtorrent.bidding.BidOpportunity;
 import com.bidtorrent.bidding.PooledHttpClient;
 import com.bidtorrent.bidding.messages.BidResponse;
-import com.bidtorrent.bidding.BidderConfiguration;
-import com.bidtorrent.bidding.BidderConfigurationFilters;
+import com.bidtorrent.bidding.messages.configuration.BidderConfiguration;
 import com.bidtorrent.bidding.BidderSelector;
 import com.bidtorrent.bidding.ConstantBidder;
 import com.bidtorrent.bidding.HttpBidder;
@@ -24,6 +23,7 @@ import com.bidtorrent.bidding.Notificator;
 import com.bidtorrent.bidding.messages.configuration.PublisherConfiguration;
 import com.google.common.base.Function;
 import com.google.common.base.Predicate;
+import com.google.common.reflect.TypeToken;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
@@ -32,6 +32,7 @@ import com.google.common.util.concurrent.MoreExecutors;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 
+import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Timer;
@@ -79,20 +80,38 @@ public class BiddingIntentService extends LongLivedService {
             }
         });
 
-        Futures.addCallback(futurePublisherConfiguration, new FutureCallback<PublisherConfiguration>() {
+        ListenableFuture<List<BidderConfiguration>> futureBiddersConfiguration = executor.submit(new Callable<List<BidderConfiguration>>() {
             @Override
-            public void onSuccess(PublisherConfiguration result) {
-                initializeWithPublisherConfiguration(result);
+            public List<BidderConfiguration> call() {
+                Type listType = new TypeToken<List<BidderConfiguration>>(){}.getType();
+                return pooledHttpClient.jsonGet("http://static.bidtorrent.io/bidders.json", listType);
+            }
+        });
+
+        ListenableFuture<List<Object>> allConfigurationsFuture = Futures.allAsList(futurePublisherConfiguration, futureBiddersConfiguration);
+
+        Futures.addCallback(allConfigurationsFuture, new FutureCallback<List<Object>>() {
+            @Override
+            public void onSuccess(List<Object> result) {
+                if (result == null || result.size() != 2){
+                    throw new RuntimeException("Not all configurations where loaded");
+                }
+
+                if (result.get(0) instanceof PublisherConfiguration){
+                    initializeWithConfiguration((PublisherConfiguration) result.get(0), (List<BidderConfiguration>) result.get(1));
+                } else {
+                    initializeWithConfiguration((PublisherConfiguration) result.get(1), (List<BidderConfiguration>) result.get(0));
+                }
             }
 
             @Override
             public void onFailure(Throwable t) {
-                Log.e("BiddingIntentService", "Failed to retrieve publisher configuration", t);
+                Log.e("BiddingIntentService", "Failed to retrieve configuration", t);
             }
         });
     }
 
-    private void initializeWithPublisherConfiguration(PublisherConfiguration result) {
+    private void initializeWithConfiguration(PublisherConfiguration result, List<BidderConfiguration> bidders) {
         this.publisherConfiguration = result;
         this.selector = new BidderSelector(this.publisherConfiguration);
 
@@ -101,18 +120,9 @@ public class BiddingIntentService extends LongLivedService {
                 Executors.newCachedThreadPool());
 
         //FIXME: Poll real bidders
-        this.selector.addBidder(new BidderConfiguration("http://bidder.bidtorrent.io/criteoBid.php",
-                new BidderConfigurationFilters(
-                        1f,
-                        new ArrayList<String>(),
-                        new ArrayList<String>(),
-                        new ArrayList<String>(),
-                        new ArrayList<String>(),
-                        new ArrayList<String>(),
-                        new ArrayList<String>(),
-                        new ArrayList<String>()
-                ),
-                "ssh-rsa ...."));
+        for (BidderConfiguration config : bidders){
+            this.selector.addBidder(config);
+        }
 
         this.resultsPool = new AuctionResultPool(
                 new Function<BidOpportunity, Future<AuctionResult>>() {
@@ -130,7 +140,7 @@ public class BiddingIntentService extends LongLivedService {
                             bidders.add(new HttpBidder(
                                     1,
                                     "Kitten",
-                                    config.getEndPoint(),
+                                    config.getBid_ep(),
                                     new JsonResponseConverter(),
                                     publisherConfiguration.timeout_soft));
                         }
