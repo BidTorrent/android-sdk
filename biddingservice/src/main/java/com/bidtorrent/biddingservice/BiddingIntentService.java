@@ -4,8 +4,19 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.graphics.PixelFormat;
 import android.net.ConnectivityManager;
+import android.os.Binder;
+import android.os.IBinder;
 import android.util.Log;
+import android.view.Gravity;
+import android.view.LayoutInflater;
+import android.view.View;
+import android.view.WindowManager;
+import android.webkit.WebView;
+import android.webkit.WebViewClient;
+import android.widget.LinearLayout;
+import android.widget.RelativeLayout;
 
 import com.bidtorrent.bidding.Auction;
 import com.bidtorrent.bidding.AuctionResult;
@@ -32,6 +43,7 @@ import com.google.common.util.concurrent.MoreExecutors;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 
+import java.io.File;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.List;
@@ -93,11 +105,11 @@ public class BiddingIntentService extends LongLivedService {
         Futures.addCallback(allConfigurationsFuture, new FutureCallback<List<Object>>() {
             @Override
             public void onSuccess(List<Object> result) {
-                if (result == null || result.size() != 2){
+                if (result == null || result.size() != 2) {
                     throw new RuntimeException("Not all configurations where loaded");
                 }
 
-                if (result.get(0) instanceof PublisherConfiguration){
+                if (result.get(0) instanceof PublisherConfiguration) {
                     initializeWithConfiguration((PublisherConfiguration) result.get(0), (List<BidderConfiguration>) result.get(1));
                 } else {
                     initializeWithConfiguration((PublisherConfiguration) result.get(1), (List<BidderConfiguration>) result.get(0));
@@ -202,6 +214,7 @@ public class BiddingIntentService extends LongLivedService {
 
         responseAvailableIntent.putExtra("biddingPrice", auctionResult.getWinningBid().getPrice());
         responseAvailableIntent.putExtra("price", auctionResult.getWinningPrice());
+        responseAvailableIntent.putExtra("creative", auctionResult.getWinningBid().seatbid.get(0).bid.get(0).creative);
 
         if (auctionResult.getWinningBid() != null){
             String notificationUrl = auctionResult.getWinningBid().buildNotificationUrl("","",auctionResult.getRunnerUp());
@@ -224,8 +237,7 @@ public class BiddingIntentService extends LongLivedService {
                 gson = new GsonBuilder().create();
                 bidOpportunity = gson.fromJson(intent.getStringExtra(REQUEST_ARG_NAME), BidOpportunity.class);
 
-                if (bidOpportunity == null)
-                {
+                if (bidOpportunity == null) {
                     notifyFailure(String.format(
                             "Failed to deserialize the request (should be in the %s field of the intent)",
                             REQUEST_ARG_NAME));
@@ -236,4 +248,5 @@ public class BiddingIntentService extends LongLivedService {
             }
         });
     }
+
 }

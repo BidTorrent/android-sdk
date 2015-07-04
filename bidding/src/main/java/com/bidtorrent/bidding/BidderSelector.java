@@ -19,25 +19,30 @@ public class BidderSelector {
     }
 
     public void addBidder(com.bidtorrent.bidding.messages.configuration.BidderConfiguration bidder){
-        if (bidder.getFilters() != null) {
-            if (bidder.getFilters().getCountriesBlacklist().contains(publisherConfiguration.site.publisher.country))
-                return; //Country blacklisted
+        try {
+            if (bidder.getFilters() != null) {
+                if (bidder.getFilters().getCountriesBlacklist().contains(publisherConfiguration.site.publisher.country))
+                    return; //Country blacklisted
 
-            if (!bidder.getFilters().getCountriesWhitelist().isEmpty()
-                    && !bidder.getFilters().getCountriesWhitelist().contains(publisherConfiguration.site.publisher.country))
-                return; //Country not in whitelist
+                if (!bidder.getFilters().getCountriesWhitelist().isEmpty()
+                        && !bidder.getFilters().getCountriesWhitelist().contains(publisherConfiguration.site.publisher.country))
+                    return; //Country not in whitelist
 
-            String lang = Locale.getDefault().getDisplayLanguage();
+                String lang = Locale.getDefault().getDisplayLanguage();
 
-            if (bidder.getFilters().getLanguagesBlacklist().contains(lang))
-                return; //Country blacklisted
+                if (bidder.getFilters().getLanguagesBlacklist().contains(lang))
+                    return; //Country blacklisted
 
-            if (!bidder.getFilters().getLanguagesBlacklist().isEmpty()
-                    && !bidder.getFilters().getLanguagesBlacklist().contains(lang))
-                return; //Country not in whitelist
+                if (!bidder.getFilters().getLanguagesBlacklist().isEmpty()
+                        && !bidder.getFilters().getLanguagesBlacklist().contains(lang))
+                    return; //Country not in whitelist
+            }
+
+
+            this.bidders.add(bidder);
+        } catch (NullPointerException e){
+            //some config missing
         }
-
-        this.bidders.add(bidder);
     }
 
     public List<com.bidtorrent.bidding.messages.configuration.BidderConfiguration> getAvailableBidders(){

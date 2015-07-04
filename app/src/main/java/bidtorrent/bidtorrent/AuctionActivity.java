@@ -7,34 +7,27 @@ import android.content.IntentFilter;
 import android.os.Bundle;
 import android.support.v7.app.ActionBarActivity;
 import android.view.View;
+import android.webkit.WebView;
 import android.widget.Button;
 import android.widget.TextView;
 
 import com.bidtorrent.bidding.BidOpportunity;
 import com.bidtorrent.bidding.Size;
+import com.bidtorrent.biddingservice.AdReadyReceiver;
 import com.bidtorrent.biddingservice.BiddingIntentService;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 
-import java.util.Locale;
-
 public class AuctionActivity extends ActionBarActivity {
     private Button bidButton;
     private TextView debugView;
+    private WebView webView;
     private BroadcastReceiver bidAvailableReceiver;
     private BroadcastReceiver auctionErrorReceiver;
 
     private BroadcastReceiver createBidAvailableReceiver()
     {
-        return new BroadcastReceiver() {
-            @Override
-            public void onReceive(Context context, Intent intent) {
-                Bundle extras = intent.getExtras();
-
-                debugView.append(String.format(Locale.getDefault(), "Price: %.2f\n", extras.getFloat("price")));
-                debugView.append(String.format(Locale.getDefault(), "BiddingPrice: %.2f\n", extras.getFloat("biddingPrice")));
-            }
-        };
+        return new AdReadyReceiver(debugView, webView);
     }
 
     private BroadcastReceiver createAuctionErrorReceiver()
@@ -56,6 +49,7 @@ public class AuctionActivity extends ActionBarActivity {
         setContentView(R.layout.activity_auction);
         bidButton = (Button)findViewById(R.id.bidButton);
         debugView = (TextView)findViewById(R.id.auctionDebug);
+        this.webView = (WebView)findViewById(R.id.webView);
 
         bidButton.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -67,7 +61,7 @@ public class AuctionActivity extends ActionBarActivity {
         this.auctionErrorReceiver = this.createAuctionErrorReceiver();
         this.bidAvailableReceiver = this.createBidAvailableReceiver();
         registerReceiver(this.bidAvailableReceiver, new IntentFilter(BiddingIntentService.AUCTION_RESULT_AVAILABLE));
-        registerReceiver(this.auctionErrorReceiver , new IntentFilter(BiddingIntentService.AUCTION_FAILED));
+        registerReceiver(this.auctionErrorReceiver, new IntentFilter(BiddingIntentService.AUCTION_FAILED));
     }
 
     @Override
@@ -75,11 +69,13 @@ public class AuctionActivity extends ActionBarActivity {
         super.onDestroy();
         this.unregisterReceiver(bidAvailableReceiver);
         this.unregisterReceiver(auctionErrorReceiver);
+
     }
 
     private void runAuction()
     {
         Intent auctionIntent = new Intent(this, BiddingIntentService.class);
+
         Gson gson;
         BidOpportunity opp;
 

@@ -1,19 +1,20 @@
 package com.bidtorrent.bidding.messages.configuration;
 
 import java.util.Collection;
+import java.util.Collections;
 
 /**
  * Created by x.noelle on 30/06/2015.
  */
 public class BidderConfigurationFilters {
     private float sampling;
-    private Collection<String> ctry_bl;
-    private Collection<String> ctry_wl;
-    private Collection<String> lang_bl;
-    private Collection<String> lang_wl;
-    private Collection<String> cat_bl;
-    private Collection<String> cat_wl;
-    private Collection<String> pub;
+    private Collection<String> ctry_bl = Collections.emptyList();
+    private Collection<String> ctry_wl = Collections.emptyList();
+    private Collection<String> lang_bl = Collections.emptyList();
+    private Collection<String> lang_wl = Collections.emptyList();
+    private Collection<String> cat_bl = Collections.emptyList();
+    private Collection<String> cat_wl = Collections.emptyList();
+    private Collection<String> pub = Collections.emptyList();
 
     public BidderConfigurationFilters(float sampling, Collection<String> countriesBlacklist, Collection<String> countriesWhitelist, Collection<String> languagesBlacklist, Collection<String> languagesWhitelist, Collection<String> categoriesBlacklist, Collection<String> categoriesWhitelist, Collection<String> publishersBlacklist) {
         this.sampling = sampling;

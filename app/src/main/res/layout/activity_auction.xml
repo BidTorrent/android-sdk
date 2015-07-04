@@ -24,4 +24,14 @@
         android:layout_alignParentStart="true"
         android:layout_alignParentTop="true" />
 
+    <WebView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:id="@+id/webView"
+        android:layout_below="@+id/auctionDebug"
+        android:layout_alignParentStart="true"
+        android:layout_marginTop="178dp"
+        android:layout_alignEnd="@+id/auctionDebug"
+        android:visibility="invisible" />
+
 </RelativeLayout>
