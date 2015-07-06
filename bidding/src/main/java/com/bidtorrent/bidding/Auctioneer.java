@@ -71,7 +71,8 @@ public class Auctioneer implements IAuctioneer {
         iterator = sortedResponses.iterator();
 
         if (!iterator.hasNext())
-            return new AuctionResult(null, 0, null, responses, 0);
+            // FIXME
+            return new AuctionResult(0, null, 0, null, responses, 0);
 
         winningBid = iterator.next();
 
@@ -83,7 +84,8 @@ public class Auctioneer implements IAuctioneer {
         else
             secondPrice = floor;
 
-        return new AuctionResult(winningBid, secondPrice, getBidderById(winningBid.getBidderId(), bidders), responses, runnerUp);
+        // FIXME
+        return new AuctionResult(0, winningBid, secondPrice, getBidderById(winningBid.getBidderId(), bidders), responses, runnerUp);
     }
 
     private static Collection<ListenableFuture<BidResponse>> pushResponseFutures(

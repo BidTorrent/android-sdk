@@ -1,62 +1,46 @@
 package com.bidtorrent.biddingservice;
 
-import com.bidtorrent.bidding.AuctionResult;
 import com.bidtorrent.bidding.BidOpportunity;
 import com.google.common.base.Function;
-import com.google.common.base.Predicate;
 
-import java.util.AbstractMap;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Queue;
-import java.util.Timer;
-import java.util.TimerTask;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
 
 public class AuctionResultPool {
     private final ExecutorService threadPool;
-    private final Function<BidOpportunity, Future<AuctionResult>> auctionRunner;
+    private final Function<BidOpportunity, Boolean> triggerPrefetching;
+    private final Function<Display, Boolean> triggerDisplay;
     private final PoolSizer poolSizer;
     private final int maxWaitingTimeMs;
     private final int bidExpirationTimeMs;
-    private final Map<BidOpportunity, Queue<PoolItem>> resultsPools;
     private final Map<BidOpportunity, Queue<WaitingClient>> waitingClients;
+    private Map<BidOpportunity, Queue<PrefetchedData>> prefetchedData = new ConcurrentHashMap<>();
+    private Map<BidOpportunity, Queue<PoolItem>> prefetching = new ConcurrentHashMap<>();
 
-    /**
-     *
-     * @param auctionRunner
-     * @param poolSizer
-     * @param maxWaitingTimeMs Maximum amount of time during which a bid request could be waiting
-     *                         in the queue without anything happening.
-     */
     public AuctionResultPool(
-            Function<BidOpportunity, Future<AuctionResult>> auctionRunner,
-            PoolSizer poolSizer,
+            Function<BidOpportunity, Boolean> triggerPrefetching,
+            Function<Display, Boolean> triggerDisplay, PoolSizer poolSizer,
             int maxWaitingTimeMs,
             int bidExpirationTimeMs)
     {
-        this.auctionRunner = auctionRunner;
+        this.triggerPrefetching = triggerPrefetching;
+        this.triggerDisplay = triggerDisplay;
         this.poolSizer = poolSizer;
         this.maxWaitingTimeMs = maxWaitingTimeMs;
         this.bidExpirationTimeMs = bidExpirationTimeMs;
-        this.resultsPools = new HashMap<>();
         this.waitingClients = new HashMap<>();
         this.threadPool = Executors.newCachedThreadPool();
     }
 
-    public void getAuctionResult(BidOpportunity bidOpportunity, Predicate<Future<AuctionResult>> cb)
+    public void getAuctionResult(BidOpportunity bidOpportunity, int requestId)
     {
-        synchronized (this.resultsPools) {
-            if (!this.resultsPools.containsKey(bidOpportunity))
-                this.resultsPools.put(bidOpportunity, new LinkedBlockingQueue<PoolItem>());
-        }
-
         synchronized (this.waitingClients) {
             if (!this.waitingClients.containsKey(bidOpportunity))
                 this.waitingClients.put(bidOpportunity, new LinkedBlockingQueue<WaitingClient>());
@@ -66,8 +50,9 @@ public class AuctionResultPool {
 
         cal.add(Calendar.MILLISECOND, this.maxWaitingTimeMs);
 
-        this.waitingClients.get(bidOpportunity).add(new WaitingClient(cal.getTime(), cb));
+        this.waitingClients.get(bidOpportunity).add(new WaitingClient(cal.getTime(), requestId));
         this.fillPools(bidOpportunity);
+        assignPrefetchData(bidOpportunity);
     }
 
     public void fillPools()
@@ -76,31 +61,48 @@ public class AuctionResultPool {
             this.fillPools(opp);
     }
 
+    public void addPrefetchedData(BidOpportunity opp, PrefetchedData data)
+    {
+        this.prefetchedData.get(opp).add(data);
+        assignPrefetchData(opp);
+    }
+
     private void fillPools(final BidOpportunity bidOpportunity)
     {
+        synchronized (this.prefetchedData) {
+            if (!this.prefetchedData.containsKey(bidOpportunity))
+                this.prefetchedData.put(bidOpportunity, new LinkedBlockingQueue<PrefetchedData>());
+        }
+
+        synchronized (this.prefetching) {
+            if (!this.prefetching.containsKey(bidOpportunity))
+                this.prefetching.put(bidOpportunity, new LinkedBlockingQueue<PoolItem>());
+        }
+
         this.threadPool.submit(new Runnable() {
             @Override
             public void run() {
-                Queue<PoolItem> poolItems;
+                Queue<PoolItem> prefetchingItems;
+                Queue<PrefetchedData> prefetchedItems;
 
-                poolItems = resultsPools.get(bidOpportunity);
+                prefetchingItems = prefetching.get(bidOpportunity);
+                prefetchedItems = prefetchedData.get(bidOpportunity);
 
-                synchronized (poolItems) {
-                    while (poolItems.size() < poolSizer.getPoolSize()) {
+                // FIXME: lock on smthg meaningful
+                synchronized (prefetchingItems) {
+                    while (prefetchingItems.size() + prefetchedItems.size() < poolSizer.getPoolSize()) {
                         Calendar cal = Calendar.getInstance();
 
                         cal.add(Calendar.MILLISECOND, bidExpirationTimeMs);
-                        poolItems.add(new PoolItem(cal.getTime(), auctionRunner.apply(bidOpportunity)));
-                        triggerAuctionAvailableEvent(bidOpportunity);
+                        triggerPrefetching.apply(bidOpportunity);
+                        prefetchingItems.add(new PoolItem(cal.getTime()));
                     }
                 }
-
-                triggerAuctionAvailableEvent(bidOpportunity);
             }
         });
     }
 
-    private void triggerAuctionAvailableEvent(BidOpportunity opportunity) {
+    private void assignPrefetchData(BidOpportunity opportunity) {
         Queue<WaitingClient> opportunityWaitingClients;
 
         opportunityWaitingClients = this.waitingClients.get(opportunity);
@@ -108,7 +110,7 @@ public class AuctionResultPool {
         synchronized (opportunityWaitingClients) {
             while (!opportunityWaitingClients.isEmpty()) {
                 WaitingClient nextClient = null;
-                PoolItem paul;
+                PrefetchedData paul;
 
                 while (!opportunityWaitingClients.isEmpty())
                 {
@@ -125,7 +127,7 @@ public class AuctionResultPool {
                     return;
 
                 do {
-                    paul = this.resultsPools.get(opportunity).poll();
+                    paul = this.prefetchedData.get(opportunity).poll();
                 } while (paul != null && paul.isExpired());
 
 
@@ -134,31 +136,16 @@ public class AuctionResultPool {
 
                 opportunityWaitingClients.poll();
 
-                this.runClient(nextClient, paul);
+                this.triggerDisplay.apply(new Display(nextClient.getId(), paul.getFileName()));
             }
         }
-    }
-
-    private void runClient(final WaitingClient client, final PoolItem paul) {
-        this.threadPool.submit(new Runnable() {
-            @Override
-            public void run() {
-                client.getCallback().apply(paul.getResult());
-            }
-        });
     }
 
     private class PoolItem {
         private Date expirationDate;
-        private Future<AuctionResult> result;
 
-        private PoolItem(Date expirationDate, Future<AuctionResult> result) {
+        private PoolItem(Date expirationDate) {
             this.expirationDate = expirationDate;
-            this.result = result;
-        }
-
-        public Future<AuctionResult> getResult() {
-            return result;
         }
 
         public boolean isExpired(){
@@ -166,22 +153,5 @@ public class AuctionResultPool {
         }
     }
 
-    private class WaitingClient
-    {
-        private final Date expirationDate;
-        private final Predicate<Future<AuctionResult>> callback;
 
-        private WaitingClient(Date expirationDate, Predicate<Future<AuctionResult>> callback) {
-            this.expirationDate = expirationDate;
-            this.callback = callback;
-        }
-
-        public Predicate<Future<AuctionResult>> getCallback() {
-            return callback;
-        }
-
-        public boolean isExpired(){
-            return expirationDate.before(new Date());
-        }
-    }
 }

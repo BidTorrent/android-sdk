@@ -10,9 +10,17 @@ public class AuctionResult {
     private final float winningPrice;
     private long runnerUp;
     private Collection<BidResponse> responses;
+    private long id;
 
-    public AuctionResult(BidResponse winningBid, float winningPrice, IBidder winningBidder, Collection<BidResponse> responses, long runnerUp)
+    public AuctionResult(
+            long id,
+            BidResponse winningBid,
+            float winningPrice,
+            IBidder winningBidder,
+            Collection<BidResponse> responses,
+            long runnerUp)
     {
+        this.id = id;
         this.winningBid = winningBid;
         this.winningPrice = winningPrice;
         this.winningBidder = winningBidder;
@@ -38,5 +46,9 @@ public class AuctionResult {
 
     public long getRunnerUp() {
         return runnerUp;
+    }
+
+    public long getId() {
+        return id;
     }
 }

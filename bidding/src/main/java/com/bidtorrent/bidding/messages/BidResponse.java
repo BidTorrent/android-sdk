@@ -11,12 +11,10 @@ public class BidResponse implements Comparable  {
 
     public BidResponse(long bidderId, float bidPrice, int bidId, String domain, String creative, String notificationUrl) {
         this.bidderId = bidderId;
-        Bid bid = new Bid("" + bidId, "", bidPrice, "", notificationUrl, domain, "");
+        Bid bid = new Bid("" + bidId, "", bidPrice, "", notificationUrl, domain, creative);
         this.seatbid = new ArrayList<>(1);
         this.seatbid.add(new Seatbid(bid));
     }
-
-
 
     public boolean isValid()
     {

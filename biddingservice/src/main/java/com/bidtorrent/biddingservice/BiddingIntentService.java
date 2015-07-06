@@ -4,19 +4,8 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
-import android.graphics.PixelFormat;
 import android.net.ConnectivityManager;
-import android.os.Binder;
-import android.os.IBinder;
 import android.util.Log;
-import android.view.Gravity;
-import android.view.LayoutInflater;
-import android.view.View;
-import android.view.WindowManager;
-import android.webkit.WebView;
-import android.webkit.WebViewClient;
-import android.widget.LinearLayout;
-import android.widget.RelativeLayout;
 
 import com.bidtorrent.bidding.Auction;
 import com.bidtorrent.bidding.AuctionResult;
@@ -33,7 +22,6 @@ import com.bidtorrent.bidding.JsonResponseConverter;
 import com.bidtorrent.bidding.Notificator;
 import com.bidtorrent.bidding.messages.configuration.PublisherConfiguration;
 import com.google.common.base.Function;
-import com.google.common.base.Predicate;
 import com.google.common.reflect.TypeToken;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
@@ -43,9 +31,9 @@ import com.google.common.util.concurrent.MoreExecutors;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 
-import java.io.File;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 import java.util.Timer;
 import java.util.TimerTask;
@@ -57,10 +45,21 @@ import java.util.concurrent.TimeUnit;
 import javax.annotation.Nullable;
 
 public class BiddingIntentService extends LongLivedService {
-    public static String AUCTION_RESULT_AVAILABLE = "Manitralalala";
-    public static String AUCTION_FAILED = "Manitrololol";
-    public static String REQUEST_ARG_NAME = "rq";
-    public static String AUCTION_ERROR_REASON_ARG = "reason";
+    // Activity extras
+    public static final String AUCTION_ERROR_REASON_ARG = "reason";
+    public static final String CREATIVE_CODE_ARG = "creativeCode";
+    public static final String PREFETCHED_CREATIVE_FILE_ARG = "creativeFile";
+    public static final String PREFETCHED_CREATIVE_EXPIRATION_ARG = "dontexpireme";
+    public static final String REQUESTER_ID_ARG = "requesterId";
+    public static final String BID_OPPORTUNITY_ARG = "dsadas";
+
+    // Actions
+    public static final String BID_AVAILABLE_INTENT = "Manitralalala";
+    public static final String AUCTION_FAILED_INTENT = "Manitrololol";
+    public static final String READY_TO_DISPLAY_AD_INTENT = "manitrataratarata";
+
+    public static final String BID_ACTION = "please-bid";
+    public static final String FILL_PREFETCH_BUFFER_ACTION = "please-store";
 
     private ListeningExecutorService executor;
     private Auctioneer auctioneer;
@@ -70,6 +69,7 @@ public class BiddingIntentService extends LongLivedService {
     private Notificator notificator;
     private Timer refreshTimer;
     private PooledHttpClient pooledHttpClient;
+
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
@@ -137,18 +137,19 @@ public class BiddingIntentService extends LongLivedService {
         }
 
         this.resultsPool = new AuctionResultPool(
-                new Function<BidOpportunity, Future<AuctionResult>>() {
+                new Function<BidOpportunity, Boolean>() {
                     @Nullable
                     @Override
-                    public Future<AuctionResult> apply(@Nullable BidOpportunity bidOpportunity) {
+                    public Boolean apply(@Nullable BidOpportunity bidOpportunity) {
                         List<IBidder> bidders;
+                        String defaultCreative = "<html><head><meta name=\"viewport\" content=\"initial-scale=1, width=300, user-scalable=no\" /></head><body style=\"padding:0px; margin:0px\"><img width=\"100%\" src=\"http://adlb.me/bidder/cache/criteo_I.jpg_320x250.jpeg\"/></body></html>";
 
                         bidders = new ArrayList<>();
 
-                        bidders.add(new ConstantBidder(4, new BidResponse(4, 0.02f, 1, "", "CREATIVE", "NOTIFYME")));
-                        bidders.add(new ConstantBidder(3, new BidResponse(3, 0.03f, 1, "", "CREATIVETHESHIT", "NOTIFYMENOT")));
+                        bidders.add(new ConstantBidder(4, new BidResponse(4, 0.02f, 1, "", defaultCreative, "NOTIFYME")));
+                        bidders.add(new ConstantBidder(3, new BidResponse(3, 0.03f, 1, "", defaultCreative, "NOTIFYMENOT")));
 
-                        for (BidderConfiguration config : selector.getAvailableBidders()){
+                        for (BidderConfiguration config : selector.getAvailableBidders()) {
                             bidders.add(new HttpBidder(
                                     1,
                                     "Kitten",
@@ -157,12 +158,28 @@ public class BiddingIntentService extends LongLivedService {
                                     publisherConfiguration.timeout_soft));
                         }
 
-                        return auctioneer.runAuction(new Auction(bidOpportunity, bidders, 0.02f));
+                        Future<AuctionResult> auctionResultFuture = auctioneer.runAuction(new Auction(bidOpportunity, bidders, 0.02f));
+                        AuctionResult result;
+                        try {
+                            result = auctionResultFuture.get(10000, TimeUnit.MILLISECONDS);
+                            sendItToPrefetch(result, bidOpportunity);
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                        }
+
+                        return true;
                     }
                 },
-                new PoolSizer(
-                        (ConnectivityManager)getSystemService(Context.CONNECTIVITY_SERVICE), 3, 5),
-                15000, 5 * 60 * 1000);
+                new Function<Display, Boolean>() {
+                    @Nullable
+                    @Override
+                    public Boolean apply(@Nullable Display input) {
+                        sendReadyToDisplayAd(input);
+                        return true;
+                    }
+                }, new PoolSizer(
+                (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE), 3, 5),
+                150000, 5 * 60 * 1000);
 
         this.refreshTimer = new Timer();
         this.refreshTimer.schedule(new TimerTask() {
@@ -180,73 +197,107 @@ public class BiddingIntentService extends LongLivedService {
         }, new IntentFilter(ConnectivityManager.CONNECTIVITY_ACTION));
     }
 
-    private void runAuction(BidOpportunity bidOpportunity)
+    @Override
+    protected void onHandleIntent(final Intent intent) {
+        if (intent.getAction().equals(BiddingIntentService.BID_ACTION))
+            this.bid(intent);
+        else
+        if (intent.getAction().equals(BiddingIntentService.FILL_PREFETCH_BUFFER_ACTION))
+            this.storePrefetchedCreative(intent);
+    }
+
+    private void runAuction(final BidOpportunity bidOpportunity, final int requesterId)
     {
-        this.resultsPool.getAuctionResult(bidOpportunity, new Predicate<Future<AuctionResult>>() {
-            @Override
-            public boolean apply(@Nullable Future<AuctionResult> input) {
-                AuctionResult auctionResult;
-
-                try {
-                    auctionResult = input.get(10000, TimeUnit.MILLISECONDS);
-                    notifySuccess(auctionResult);
-                } catch (Exception e) {
-                    notifyFailure("Auction reached the timeout w/o returning any bid");
-                }
-
-                return true;
-            }
-        });
+        this.resultsPool.getAuctionResult(bidOpportunity, requesterId);
     }
 
     private void notifyFailure(String errorMsg)
     {
-        Intent responseAvailableIntent = new Intent(AUCTION_FAILED);
+        Intent responseAvailableIntent = new Intent(AUCTION_FAILED_INTENT);
 
         responseAvailableIntent.putExtra(AUCTION_ERROR_REASON_ARG, errorMsg);
 
         this.sendBroadcast(responseAvailableIntent);
     }
 
-    private void notifySuccess(AuctionResult auctionResult)
+    private void sendItToPrefetch(AuctionResult auctionResult, BidOpportunity bidOpportunity)
     {
-        Intent responseAvailableIntent = new Intent(AUCTION_RESULT_AVAILABLE);
+        Intent responseAvailableIntent = new Intent(BID_AVAILABLE_INTENT);
+        Gson gson;
 
-        responseAvailableIntent.putExtra("biddingPrice", auctionResult.getWinningBid().getPrice());
-        responseAvailableIntent.putExtra("price", auctionResult.getWinningPrice());
-        responseAvailableIntent.putExtra("creative", auctionResult.getWinningBid().seatbid.get(0).bid.get(0).creative);
+        gson = new GsonBuilder().create();
 
+        // FIXME
+        responseAvailableIntent.putExtra(BiddingIntentService.CREATIVE_CODE_ARG, auctionResult.getWinningBid().seatbid.get(0).bid.get(0).creative);
+        responseAvailableIntent.putExtra(BiddingIntentService.BID_OPPORTUNITY_ARG, gson.toJson(bidOpportunity));
+
+        this.sendBroadcast(responseAvailableIntent);
+    }
+
+    private void notifyDisplay()
+    {
+        // FIXME: get this from cache
+        AuctionResult auctionResult;
+
+        auctionResult = new AuctionResult(1, null, 0, null, null, 0);
         if (auctionResult.getWinningBid() != null){
             String notificationUrl = auctionResult.getWinningBid().buildNotificationUrl("","",auctionResult.getRunnerUp());
             if (notificationUrl != null)
                 this.notificator.notify(notificationUrl);
         }
-
-        this.sendBroadcast(responseAvailableIntent);
     }
 
-    @Override
-    protected void onHandleIntent(final Intent intent) {
+    private void sendReadyToDisplayAd(Display display) {
+        int requesterId = display.getRequesterId();
+
+        Intent readyDisplay = new Intent(READY_TO_DISPLAY_AD_INTENT);
+        readyDisplay.putExtra(REQUESTER_ID_ARG, requesterId);
+        sendBroadcast(readyDisplay.putExtra(PREFETCHED_CREATIVE_FILE_ARG, display.getFileName()));
+    }
+
+    private void storePrefetchedCreative(final Intent intent) {
+        BidOpportunity bidOpportunity;
+
+        bidOpportunity = getBidOpportunity(intent);
+        String creativeFilePath = intent.getStringExtra(PREFETCHED_CREATIVE_FILE_ARG);
+        long expirationDate = intent.getLongExtra(PREFETCHED_CREATIVE_EXPIRATION_ARG, System.currentTimeMillis());
+
+        // FIXME
+        resultsPool.addPrefetchedData(bidOpportunity, new PrefetchedData(creativeFilePath, new Date(expirationDate + 10000000)));
+    }
+
+    private int getRequesterId(Intent intent) {
+        return intent.getIntExtra(REQUESTER_ID_ARG, 0);
+    }
+
+    private void bid(final Intent intent)
+    {
         this.executor.submit(new Runnable() {
             @Override
             public void run() {
-                AuctionResult auctionResult = null;
                 BidOpportunity bidOpportunity;
-                Gson gson;
-
-                gson = new GsonBuilder().create();
-                bidOpportunity = gson.fromJson(intent.getStringExtra(REQUEST_ARG_NAME), BidOpportunity.class);
+                int requesterId;
+                bidOpportunity = getBidOpportunity(intent);
+                requesterId = getRequesterId(intent);
 
                 if (bidOpportunity == null) {
                     notifyFailure(String.format(
                             "Failed to deserialize the request (should be in the %s field of the intent)",
-                            REQUEST_ARG_NAME));
+                            BID_OPPORTUNITY_ARG));
                     return;
                 }
 
-                runAuction(bidOpportunity);
+                runAuction(bidOpportunity, requesterId);
             }
         });
     }
 
+    private BidOpportunity getBidOpportunity(Intent intent) {
+        BidOpportunity bidOpportunity;
+        Gson gson;
+
+        gson = new GsonBuilder().create();
+        bidOpportunity = gson.fromJson(intent.getStringExtra(BID_OPPORTUNITY_ARG), BidOpportunity.class);
+        return bidOpportunity;
+    }
 }
