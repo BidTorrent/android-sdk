@@ -12,6 +12,8 @@ import android.widget.Button;
 import android.widget.TextView;
 
 import com.bidtorrent.bidding.BidOpportunity;
+import com.bidtorrent.bidding.Notificator;
+import com.bidtorrent.bidding.PooledHttpClient;
 import com.bidtorrent.bidding.Size;
 import com.bidtorrent.biddingservice.CreativeDisplayReceiver;
 import com.bidtorrent.biddingservice.PrefetchReceiver;
@@ -35,7 +37,8 @@ public class AuctionActivity extends ActionBarActivity {
     //FIXME: Can this be the point of entry for our library?
     private BroadcastReceiver createDisplayReceiver()
     {
-        return new CreativeDisplayReceiver(webView, 4242);
+        return new CreativeDisplayReceiver(webView, 4242,
+                new Notificator(10000, new PooledHttpClient(10000)));
     }
 
     private BroadcastReceiver createAuctionErrorReceiver()
@@ -84,7 +87,7 @@ public class AuctionActivity extends ActionBarActivity {
     private void runAuction()
     {
         Intent auctionIntent = new Intent(this, BiddingIntentService.class);
-        int requesterId = 4242; //FIXME
+        int requesterId = 4242;
         Gson gson;
         BidOpportunity opp;
 

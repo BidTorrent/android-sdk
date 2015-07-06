@@ -136,7 +136,7 @@ public class AuctionResultPool {
 
                 opportunityWaitingClients.poll();
 
-                this.triggerDisplay.apply(new Display(nextClient.getId(), paul.getFileName()));
+                this.triggerDisplay.apply(new Display(nextClient.getId(), paul.getFileName(), paul.getNotificationUrl()));
             }
         }
     }

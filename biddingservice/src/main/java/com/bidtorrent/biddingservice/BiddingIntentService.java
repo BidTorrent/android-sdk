@@ -60,16 +60,17 @@ public class BiddingIntentService extends LongLivedService {
 
     public static final String BID_ACTION = "please-bid";
     public static final String FILL_PREFETCH_BUFFER_ACTION = "please-store";
+    public static final String NOTIFICATION_URL_ARG = "notif";
 
     private ListeningExecutorService executor;
     private Auctioneer auctioneer;
     private AuctionResultPool resultsPool;
     private BidderSelector selector;
     private PublisherConfiguration publisherConfiguration;
-    private Notificator notificator;
     private Timer refreshTimer;
     private PooledHttpClient pooledHttpClient;
 
+    private Gson gson;
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
@@ -80,10 +81,9 @@ public class BiddingIntentService extends LongLivedService {
     @Override
     public void onCreate() {
         super.onCreate();
+        this.gson = new GsonBuilder().create();
         this.executor = MoreExecutors.listeningDecorator(Executors.newCachedThreadPool());
         this.pooledHttpClient = new PooledHttpClient(1000);
-
-        this.notificator = new Notificator(10000, null);
 
         ListenableFuture<PublisherConfiguration> futurePublisherConfiguration = executor.submit(new Callable<PublisherConfiguration>() {
             @Override
@@ -223,36 +223,21 @@ public class BiddingIntentService extends LongLivedService {
     private void sendItToPrefetch(AuctionResult auctionResult, BidOpportunity bidOpportunity)
     {
         Intent responseAvailableIntent = new Intent(BID_AVAILABLE_INTENT);
-        Gson gson;
 
-        gson = new GsonBuilder().create();
-
-        // FIXME
         responseAvailableIntent.putExtra(BiddingIntentService.CREATIVE_CODE_ARG, auctionResult.getWinningBid().seatbid.get(0).bid.get(0).creative);
         responseAvailableIntent.putExtra(BiddingIntentService.BID_OPPORTUNITY_ARG, gson.toJson(bidOpportunity));
+        responseAvailableIntent.putExtra(BiddingIntentService.NOTIFICATION_URL_ARG,
+                auctionResult.getWinningBid().buildNotificationUrl("", "", auctionResult.getRunnerUp()));
 
         this.sendBroadcast(responseAvailableIntent);
     }
 
-    private void notifyDisplay()
-    {
-        // FIXME: get this from cache
-        AuctionResult auctionResult;
-
-        auctionResult = new AuctionResult(null, 0, null, null, 0);
-        if (auctionResult.getWinningBid() != null){
-            String notificationUrl = auctionResult.getWinningBid().buildNotificationUrl("","",auctionResult.getRunnerUp());
-            if (notificationUrl != null)
-                this.notificator.notify(notificationUrl);
-        }
-    }
-
     private void sendReadyToDisplayAd(Display display) {
-        int requesterId = display.getRequesterId();
-
         Intent readyDisplay = new Intent(READY_TO_DISPLAY_AD_INTENT);
-        readyDisplay.putExtra(REQUESTER_ID_ARG, requesterId);
-        sendBroadcast(readyDisplay.putExtra(PREFETCHED_CREATIVE_FILE_ARG, display.getFileName()));
+        readyDisplay.putExtra(REQUESTER_ID_ARG, display.getRequesterId())
+                .putExtra(PREFETCHED_CREATIVE_FILE_ARG, display.getFileName())
+                .putExtra(NOTIFICATION_URL_ARG, display.getNotificationUrl());
+        sendBroadcast(readyDisplay);
     }
 
     private void storePrefetchedCreative(final Intent intent) {
@@ -261,9 +246,10 @@ public class BiddingIntentService extends LongLivedService {
         bidOpportunity = getBidOpportunity(intent);
         String creativeFilePath = intent.getStringExtra(PREFETCHED_CREATIVE_FILE_ARG);
         long expirationDate = intent.getLongExtra(PREFETCHED_CREATIVE_EXPIRATION_ARG, System.currentTimeMillis());
+        String notificationUrl = intent.getStringExtra(NOTIFICATION_URL_ARG);
 
         // FIXME
-        resultsPool.addPrefetchedData(bidOpportunity, new PrefetchedData(creativeFilePath, new Date(expirationDate + 10000000)));
+        resultsPool.addPrefetchedData(bidOpportunity, new PrefetchedData(creativeFilePath, notificationUrl, new Date(expirationDate + 10000000)));
     }
 
     private int getRequesterId(Intent intent) {
@@ -294,9 +280,7 @@ public class BiddingIntentService extends LongLivedService {
 
     private BidOpportunity getBidOpportunity(Intent intent) {
         BidOpportunity bidOpportunity;
-        Gson gson;
 
-        gson = new GsonBuilder().create();
         bidOpportunity = gson.fromJson(intent.getStringExtra(BID_OPPORTUNITY_ARG), BidOpportunity.class);
         return bidOpportunity;
     }

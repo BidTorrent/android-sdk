@@ -29,9 +29,11 @@ public class PrefetchReceiver extends BroadcastReceiver {
                                 Intent auctionIntent;
                                 auctionIntent = new Intent(context, BiddingIntentService.class);
                                 auctionIntent.setAction(BiddingIntentService.FILL_PREFETCH_BUFFER_ACTION);
-                                auctionIntent.putExtra(BiddingIntentService.PREFETCHED_CREATIVE_FILE_ARG, value);
-                                auctionIntent.putExtra(BiddingIntentService.BID_OPPORTUNITY_ARG,
-                                        intent.getStringExtra(BiddingIntentService.BID_OPPORTUNITY_ARG));
+                                auctionIntent.putExtra(BiddingIntentService.PREFETCHED_CREATIVE_FILE_ARG, value)
+                                    .putExtra(BiddingIntentService.BID_OPPORTUNITY_ARG,
+                                            intent.getStringExtra(BiddingIntentService.BID_OPPORTUNITY_ARG))
+                                    .putExtra(BiddingIntentService.NOTIFICATION_URL_ARG,
+                                            intent.getStringExtra(BiddingIntentService.NOTIFICATION_URL_ARG));
 
                                 context.startService(auctionIntent);
                                 view.destroy();
