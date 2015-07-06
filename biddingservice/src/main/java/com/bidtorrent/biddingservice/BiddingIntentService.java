@@ -68,12 +68,11 @@ public class BiddingIntentService extends LongLivedService {
 
     private ListeningExecutorService executor;
     private Auctioneer auctioneer;
-    private PrefetchAdsPool resultsPool;
+    private PrefetchAdsPool prefetchedAdsPool;
     private BidderSelector selector;
     private PublisherConfiguration publisherConfiguration;
     private Timer refreshTimer;
     private PooledHttpClient pooledHttpClient;
-
     private Gson gson;
 
     @Override
@@ -140,7 +139,7 @@ public class BiddingIntentService extends LongLivedService {
             this.selector.addBidder(config);
         }
 
-        this.resultsPool = new PrefetchAdsPool(
+        this.prefetchedAdsPool = new PrefetchAdsPool(
                 new Function<BidOpportunity, Boolean>() {
                     @Nullable
                     @Override
@@ -189,14 +188,14 @@ public class BiddingIntentService extends LongLivedService {
         this.refreshTimer.schedule(new TimerTask() {
             @Override
             public void run() {
-                resultsPool.fillPools();
+                prefetchedAdsPool.fillPools();
             }
         }, 0, 5 * 60 * 1000);
 
         registerReceiver(new BroadcastReceiver() {
             @Override
             public void onReceive(Context context, Intent intent) {
-                resultsPool.fillPools();
+                prefetchedAdsPool.fillPools();
             }
         }, new IntentFilter(ConnectivityManager.CONNECTIVITY_ACTION));
     }
@@ -212,7 +211,7 @@ public class BiddingIntentService extends LongLivedService {
 
     private void runAuction(final BidOpportunity bidOpportunity, final int requesterId)
     {
-        this.resultsPool.getAuctionResult(bidOpportunity, requesterId);
+        this.prefetchedAdsPool.triggerPrefetching(bidOpportunity, requesterId);
     }
 
     private void notifyFailure(String errorMsg)
@@ -253,7 +252,7 @@ public class BiddingIntentService extends LongLivedService {
         String notificationUrl = intent.getStringExtra(NOTIFICATION_URL_ARG);
 
         // FIXME
-        resultsPool.addPrefetchedData(bidOpportunity, new PrefetchedData(creativeFilePath, notificationUrl, new Date(expirationDate + 10000000)));
+        prefetchedAdsPool.addPrefetchedData(bidOpportunity, new PrefetchedData(creativeFilePath, notificationUrl, new Date(expirationDate + 10000000)));
     }
 
     private int getRequesterId(Intent intent) {

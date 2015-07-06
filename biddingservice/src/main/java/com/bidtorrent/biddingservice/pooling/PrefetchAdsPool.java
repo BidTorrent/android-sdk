@@ -24,6 +24,7 @@ public class PrefetchAdsPool {
     private final Map<BidOpportunity, Queue<WaitingClient>> waitingClients;
     private Map<BidOpportunity, Queue<PrefetchedData>> prefetchedData = new ConcurrentHashMap<>();
     private Map<BidOpportunity, Queue<PoolItem>> prefetching = new ConcurrentHashMap<>();
+    private Map<BidOpportunity, Object> perOpportunityLock;
 
     public PrefetchAdsPool(
             Function<BidOpportunity, Boolean> triggerPrefetching,
@@ -38,21 +39,39 @@ public class PrefetchAdsPool {
         this.bidExpirationTimeMs = bidExpirationTimeMs;
         this.waitingClients = new HashMap<>();
         this.threadPool = Executors.newCachedThreadPool();
+        this.perOpportunityLock = new HashMap<>();
     }
 
-    public void getAuctionResult(BidOpportunity bidOpportunity, int requestId)
+    public void triggerPrefetching(BidOpportunity bidOpportunity, int requestId)
     {
         synchronized (this.waitingClients) {
             if (!this.waitingClients.containsKey(bidOpportunity))
                 this.waitingClients.put(bidOpportunity, new LinkedBlockingQueue<WaitingClient>());
         }
 
+        synchronized (this.perOpportunityLock) {
+            if (!this.perOpportunityLock.containsKey(bidOpportunity))
+                this.perOpportunityLock.put(bidOpportunity, new String());
+        }
+
+        this.waitingClients.get(bidOpportunity).add(new WaitingClient(this.getClientExpirationDate(), requestId));
+        this.fillPools(bidOpportunity);
+    }
+
+    private Date getClientExpirationDate()
+    {
         Calendar cal = Calendar.getInstance();
 
         cal.add(Calendar.MILLISECOND, this.maxWaitingTimeMs);
+        return cal.getTime();
+    }
 
-        this.waitingClients.get(bidOpportunity).add(new WaitingClient(cal.getTime(), requestId));
-        this.fillPools(bidOpportunity);
+    private Date getBidExpirationDate()
+    {
+        Calendar cal = Calendar.getInstance();
+
+        cal.add(Calendar.MILLISECOND, this.bidExpirationTimeMs);
+        return cal.getTime();
     }
 
     public void fillPools()
@@ -83,19 +102,23 @@ public class PrefetchAdsPool {
             @Override
             public void run() {
                 Queue<PoolItem> prefetchingItems;
+                Queue<WaitingClient> opportunityClients;
                 Queue<PrefetchedData> prefetchedItems;
+                Object opportunityLock;
 
                 prefetchingItems = prefetching.get(bidOpportunity);
                 prefetchedItems = prefetchedData.get(bidOpportunity);
+                opportunityClients = waitingClients.get(bidOpportunity);
+                opportunityLock = perOpportunityLock.get(bidOpportunity);
 
-                // FIXME: lock on smthg meaningful
-                synchronized (prefetchingItems) {
-                    while (prefetchingItems.size() + prefetchedItems.size() < poolSizer.getPoolSize()) {
-                        Calendar cal = Calendar.getInstance();
+                synchronized (opportunityLock) {
+                    long adsInThePipe = prefetchingItems.size() + prefetchedItems.size();
 
-                        cal.add(Calendar.MILLISECOND, bidExpirationTimeMs);
+                    if (adsInThePipe < opportunityClients.size() ||
+                        adsInThePipe < poolSizer.getPoolSize())
+                    {
                         triggerPrefetching.apply(bidOpportunity);
-                        prefetchingItems.add(new PoolItem(cal.getTime()));
+                        prefetchingItems.add(new PoolItem(getBidExpirationDate()));
                         assignPrefetchData(bidOpportunity);
                     }
                 }
@@ -106,24 +129,26 @@ public class PrefetchAdsPool {
     }
 
     private void assignPrefetchData(BidOpportunity opportunity) {
-        Queue<WaitingClient> opportunityWaitingClients;
+        Queue<WaitingClient> opportunityClients;
+        Object opportunityLock;
 
-        opportunityWaitingClients = this.waitingClients.get(opportunity);
+        opportunityLock = perOpportunityLock.get(opportunity);
+        opportunityClients = this.waitingClients.get(opportunity);
 
-        synchronized (opportunityWaitingClients) {
-            while (!opportunityWaitingClients.isEmpty()) {
+        synchronized (opportunityLock) {
+            while (!opportunityClients.isEmpty()) {
                 WaitingClient nextClient = null;
                 PrefetchedData paul;
 
-                while (!opportunityWaitingClients.isEmpty())
+                while (!opportunityClients.isEmpty())
                 {
-                    nextClient = opportunityWaitingClients.peek();
+                    nextClient = opportunityClients.peek();
 
                     if (nextClient == null || !nextClient.isExpired())
                         break;
 
                     nextClient = null;
-                    opportunityWaitingClients.poll();
+                    opportunityClients.poll();
                 }
 
                 if (nextClient == null)
@@ -137,7 +162,7 @@ public class PrefetchAdsPool {
                 if (paul == null)
                     break;
 
-                opportunityWaitingClients.poll();
+                opportunityClients.poll();
 
                 this.triggerDisplay.apply(new Display(nextClient.getId(), paul.getFileName(), paul.getNotificationUrl()));
             }

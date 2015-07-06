@@ -73,6 +73,7 @@ public class AuctionActivity extends ActionBarActivity {
     protected void onDestroy() {
         super.onDestroy();
         this.unregisterReceiver(auctionErrorReceiver);
+        this.unregisterReceiver(displayReceiver);
     }
 
     private void runAuction()
