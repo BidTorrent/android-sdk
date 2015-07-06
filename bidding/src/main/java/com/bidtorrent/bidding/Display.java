@@ -1,4 +1,4 @@
-package com.bidtorrent.biddingservice;
+package com.bidtorrent.bidding;
 
 public class Display {
     private int requesterId;

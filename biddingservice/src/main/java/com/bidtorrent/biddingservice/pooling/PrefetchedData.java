@@ -1,4 +1,4 @@
-package com.bidtorrent.biddingservice;
+package com.bidtorrent.biddingservice.pooling;
 
 import java.util.Date;
 

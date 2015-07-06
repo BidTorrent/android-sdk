@@ -1,6 +1,7 @@
-package com.bidtorrent.biddingservice;
+package com.bidtorrent.biddingservice.pooling;
 
 import com.bidtorrent.bidding.BidOpportunity;
+import com.bidtorrent.bidding.Display;
 import com.google.common.base.Function;
 
 import java.util.Calendar;
@@ -13,7 +14,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
 
-public class AuctionResultPool {
+public class PrefetchAdsPool {
     private final ExecutorService threadPool;
     private final Function<BidOpportunity, Boolean> triggerPrefetching;
     private final Function<Display, Boolean> triggerDisplay;
@@ -24,7 +25,7 @@ public class AuctionResultPool {
     private Map<BidOpportunity, Queue<PrefetchedData>> prefetchedData = new ConcurrentHashMap<>();
     private Map<BidOpportunity, Queue<PoolItem>> prefetching = new ConcurrentHashMap<>();
 
-    public AuctionResultPool(
+    public PrefetchAdsPool(
             Function<BidOpportunity, Boolean> triggerPrefetching,
             Function<Display, Boolean> triggerDisplay, PoolSizer poolSizer,
             int maxWaitingTimeMs,

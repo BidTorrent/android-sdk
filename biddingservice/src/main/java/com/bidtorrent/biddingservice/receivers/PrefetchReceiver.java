@@ -1,4 +1,4 @@
-package com.bidtorrent.biddingservice;
+package com.bidtorrent.biddingservice.receivers;
 
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -7,6 +7,8 @@ import android.os.Bundle;
 import android.webkit.ValueCallback;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
+
+import com.bidtorrent.biddingservice.BiddingIntentService;
 
 public class PrefetchReceiver extends BroadcastReceiver {
     public PrefetchReceiver() {

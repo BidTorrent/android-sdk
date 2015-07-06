@@ -1,4 +1,4 @@
-package com.bidtorrent.biddingservice;
+package com.bidtorrent.biddingservice.receivers;
 
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -10,6 +10,7 @@ import android.webkit.WebViewClient;
 
 import com.bidtorrent.bidding.AuctionResult;
 import com.bidtorrent.bidding.Notificator;
+import com.bidtorrent.biddingservice.BiddingIntentService;
 
 public class CreativeDisplayReceiver extends BroadcastReceiver {
     private final int requesterId;

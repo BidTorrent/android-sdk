@@ -11,6 +11,7 @@ import com.bidtorrent.bidding.Auction;
 import com.bidtorrent.bidding.AuctionResult;
 import com.bidtorrent.bidding.Auctioneer;
 import com.bidtorrent.bidding.BidOpportunity;
+import com.bidtorrent.bidding.Display;
 import com.bidtorrent.bidding.PooledHttpClient;
 import com.bidtorrent.bidding.messages.BidResponse;
 import com.bidtorrent.bidding.messages.configuration.BidderConfiguration;
@@ -19,8 +20,10 @@ import com.bidtorrent.bidding.ConstantBidder;
 import com.bidtorrent.bidding.HttpBidder;
 import com.bidtorrent.bidding.IBidder;
 import com.bidtorrent.bidding.JsonResponseConverter;
-import com.bidtorrent.bidding.Notificator;
 import com.bidtorrent.bidding.messages.configuration.PublisherConfiguration;
+import com.bidtorrent.biddingservice.pooling.PoolSizer;
+import com.bidtorrent.biddingservice.pooling.PrefetchAdsPool;
+import com.bidtorrent.biddingservice.pooling.PrefetchedData;
 import com.google.common.base.Function;
 import com.google.common.reflect.TypeToken;
 import com.google.common.util.concurrent.FutureCallback;
@@ -53,18 +56,19 @@ public class BiddingIntentService extends LongLivedService {
     public static final String REQUESTER_ID_ARG = "requesterId";
     public static final String BID_OPPORTUNITY_ARG = "dsadas";
 
-    // Actions
+    // Intents
     public static final String BID_AVAILABLE_INTENT = "Manitralalala";
     public static final String AUCTION_FAILED_INTENT = "Manitrololol";
     public static final String READY_TO_DISPLAY_AD_INTENT = "manitrataratarata";
 
+    // Actions
     public static final String BID_ACTION = "please-bid";
     public static final String FILL_PREFETCH_BUFFER_ACTION = "please-store";
     public static final String NOTIFICATION_URL_ARG = "notif";
 
     private ListeningExecutorService executor;
     private Auctioneer auctioneer;
-    private AuctionResultPool resultsPool;
+    private PrefetchAdsPool resultsPool;
     private BidderSelector selector;
     private PublisherConfiguration publisherConfiguration;
     private Timer refreshTimer;
@@ -136,7 +140,7 @@ public class BiddingIntentService extends LongLivedService {
             this.selector.addBidder(config);
         }
 
-        this.resultsPool = new AuctionResultPool(
+        this.resultsPool = new PrefetchAdsPool(
                 new Function<BidOpportunity, Boolean>() {
                     @Nullable
                     @Override
