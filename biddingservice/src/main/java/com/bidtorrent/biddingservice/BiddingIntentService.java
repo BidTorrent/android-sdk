@@ -239,7 +239,7 @@ public class BiddingIntentService extends LongLivedService {
         // FIXME: get this from cache
         AuctionResult auctionResult;
 
-        auctionResult = new AuctionResult(1, null, 0, null, null, 0);
+        auctionResult = new AuctionResult(null, 0, null, null, 0);
         if (auctionResult.getWinningBid() != null){
             String notificationUrl = auctionResult.getWinningBid().buildNotificationUrl("","",auctionResult.getRunnerUp());
             if (notificationUrl != null)
