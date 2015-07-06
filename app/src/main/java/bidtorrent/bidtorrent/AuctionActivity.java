@@ -25,14 +25,8 @@ public class AuctionActivity extends ActionBarActivity {
     private Button bidButton;
     private TextView debugView;
     private WebView webView;
-    private BroadcastReceiver prefetchReceiver;
     private BroadcastReceiver auctionErrorReceiver;
     private BroadcastReceiver displayReceiver;
-
-    private BroadcastReceiver createPrefetchReceiver()
-    {
-        return new PrefetchReceiver();
-    }
 
     //FIXME: Can this be the point of entry for our library?
     private BroadcastReceiver createDisplayReceiver()
@@ -70,9 +64,7 @@ public class AuctionActivity extends ActionBarActivity {
         });
 
         this.auctionErrorReceiver = this.createAuctionErrorReceiver();
-        this.prefetchReceiver = this.createPrefetchReceiver();
         this.displayReceiver = this.createDisplayReceiver();
-        registerReceiver(this.prefetchReceiver, new IntentFilter(BiddingIntentService.BID_AVAILABLE_INTENT));
         registerReceiver(this.displayReceiver, new IntentFilter(BiddingIntentService.READY_TO_DISPLAY_AD_INTENT));
         registerReceiver(this.auctionErrorReceiver, new IntentFilter(BiddingIntentService.AUCTION_FAILED_INTENT));
     }
@@ -80,7 +72,6 @@ public class AuctionActivity extends ActionBarActivity {
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        this.unregisterReceiver(prefetchReceiver);
         this.unregisterReceiver(auctionErrorReceiver);
     }
 
