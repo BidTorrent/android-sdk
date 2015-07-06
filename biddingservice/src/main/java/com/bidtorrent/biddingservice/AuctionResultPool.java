@@ -52,7 +52,6 @@ public class AuctionResultPool {
 
         this.waitingClients.get(bidOpportunity).add(new WaitingClient(cal.getTime(), requestId));
         this.fillPools(bidOpportunity);
-        assignPrefetchData(bidOpportunity);
     }
 
     public void fillPools()
@@ -96,8 +95,11 @@ public class AuctionResultPool {
                         cal.add(Calendar.MILLISECOND, bidExpirationTimeMs);
                         triggerPrefetching.apply(bidOpportunity);
                         prefetchingItems.add(new PoolItem(cal.getTime()));
+                        assignPrefetchData(bidOpportunity);
                     }
                 }
+
+                assignPrefetchData(bidOpportunity);
             }
         });
     }
