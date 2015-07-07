@@ -36,8 +36,11 @@ import com.google.gson.GsonBuilder;
 
 import java.lang.reflect.Type;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Date;
+import java.util.LinkedList;
 import java.util.List;
+import java.util.Queue;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.Callable;
@@ -74,6 +77,9 @@ public class BiddingIntentService extends LongLivedService {
     private Timer refreshTimer;
     private PooledHttpClient pooledHttpClient;
     private Gson gson;
+    private boolean configurationLoaded;
+    private Queue<Intent> pendingIntents;
+    private Timer pendingIntentsTimer;
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
@@ -84,14 +90,18 @@ public class BiddingIntentService extends LongLivedService {
     @Override
     public void onCreate() {
         super.onCreate();
+
+        this.pendingIntents = new LinkedList<>();
+        this.configurationLoaded = false;
         this.gson = new GsonBuilder().create();
         this.executor = MoreExecutors.listeningDecorator(Executors.newCachedThreadPool());
         this.pooledHttpClient = new PooledHttpClient(1000);
+        this.pendingIntentsTimer = new Timer();
 
         ListenableFuture<PublisherConfiguration> futurePublisherConfiguration = executor.submit(new Callable<PublisherConfiguration>() {
             @Override
             public PublisherConfiguration call() {
-                return pooledHttpClient.jsonGet("http://static.bidtorrent.io/publisher.json", PublisherConfiguration.class);
+                return pooledHttpClient.jsonGet("http://www.mirari.fr/2PAt?a=open", PublisherConfiguration.class);
             }
         });
 
@@ -99,7 +109,7 @@ public class BiddingIntentService extends LongLivedService {
             @Override
             public List<BidderConfiguration> call() {
                 Type listType = new TypeToken<List<BidderConfiguration>>(){}.getType();
-                return pooledHttpClient.jsonGet("http://static.bidtorrent.io/bidders.json", listType);
+                return pooledHttpClient.jsonGet("http://www.mirari.fr/sxq2?a=open", listType);
             }
         });
 
@@ -117,6 +127,8 @@ public class BiddingIntentService extends LongLivedService {
                 } else {
                     initializeWithConfiguration((PublisherConfiguration) result.get(1), (List<BidderConfiguration>) result.get(0));
                 }
+
+                configurationLoaded = true;
             }
 
             @Override
@@ -202,16 +214,63 @@ public class BiddingIntentService extends LongLivedService {
 
     @Override
     protected void onHandleIntent(final Intent intent) {
-        if (intent.getAction().equals(BiddingIntentService.BID_ACTION))
-            this.bid(intent);
-        else
-        if (intent.getAction().equals(BiddingIntentService.FILL_PREFETCH_BUFFER_ACTION))
-            this.storePrefetchedCreative(intent);
+        String action = intent.getAction();
+
+        if (action == null)
+            return;
+
+        if (this.handleMissingConfiguration(intent)) {
+            if (intent.getAction().equals(BiddingIntentService.BID_ACTION))
+                this.bid(intent);
+            else if (intent.getAction().equals(BiddingIntentService.FILL_PREFETCH_BUFFER_ACTION))
+                this.storePrefetchedCreative(intent);
+        }
     }
 
-    private void runAuction(final BidOpportunity bidOpportunity, final int requesterId)
+    /**
+     * Possibly stop the intent from being handled and hold it until the configuration has been loaded.
+     * @param intent The intent to handle.
+     * @return Whether the intent should be handled or not.
+     */
+    private boolean handleMissingConfiguration(final Intent intent)
     {
-        this.prefetchedAdsPool.triggerPrefetching(bidOpportunity, requesterId);
+        final BiddingIntentService me = this;
+
+        if (configurationLoaded)
+            return true;
+
+        synchronized (this.pendingIntents) {
+            this.pendingIntents.add(intent);
+
+            // Don't run the timer if we are not the first
+            if (this.pendingIntents.size() != 1)
+                return false;
+        }
+
+        this.pendingIntentsTimer.schedule(new TimerTask() {
+            @Override
+            public void run() {
+                if (configurationLoaded)
+                {
+                    while (true) {
+                        Intent currentIntent = null;
+
+                        synchronized (pendingIntents) {
+                            currentIntent = pendingIntents.poll();
+                            if (currentIntent == null)
+                            {
+                                pendingIntentsTimer.cancel();
+                                break;
+                            }
+                        }
+
+                        me.onHandleIntent(currentIntent);
+                    }
+                }
+            }
+        }, 1 * 1000);
+
+        return false;
     }
 
     private void notifyFailure(String errorMsg)
@@ -276,7 +335,7 @@ public class BiddingIntentService extends LongLivedService {
                     return;
                 }
 
-                runAuction(bidOpportunity, requesterId);
+                prefetchedAdsPool.triggerPrefetching(bidOpportunity, requesterId);
             }
         });
     }
