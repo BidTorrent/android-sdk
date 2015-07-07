@@ -10,6 +10,8 @@ import android.webkit.WebViewClient;
 import com.bidtorrent.bidding.Notificator;
 import com.bidtorrent.biddingservice.Constants;
 
+import java.io.File;
+
 public class CreativeDisplayReceiver extends BroadcastReceiver {
     private final int requesterId;
     private WebView webView;
@@ -28,7 +30,7 @@ public class CreativeDisplayReceiver extends BroadcastReceiver {
         if (intent.getIntExtra("requesterId", -1) != this.requesterId)
             return; // Message not for me :'(
 
-        String creativeFile = intent.getStringExtra(Constants.PREFETCHED_CREATIVE_FILE_ARG);
+        final String creativeFile = intent.getStringExtra(Constants.PREFETCHED_CREATIVE_FILE_ARG);
         final String notificationUrl = intent.getStringExtra(Constants.NOTIFICATION_URL_ARG);
 
         webView.setVisibility(View.INVISIBLE);
@@ -37,6 +39,7 @@ public class CreativeDisplayReceiver extends BroadcastReceiver {
             public void onPageFinished(WebView view, String url) {
                 super.onPageFinished(view, url);
                 view.setVisibility(View.VISIBLE);
+                new File(creativeFile).delete();
 
                 if (notificationUrl != null)
                     notificator.notify(notificationUrl);

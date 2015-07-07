@@ -12,6 +12,8 @@ import com.bidtorrent.biddingservice.BiddingIntentService;
 import com.bidtorrent.biddingservice.Constants;
 
 import java.io.File;
+import java.io.IOException;
+import java.util.Random;
 
 public class PrefetchReceiver extends BroadcastReceiver {
     public PrefetchReceiver() {
@@ -27,8 +29,16 @@ public class PrefetchReceiver extends BroadcastReceiver {
         webView.setWebViewClient(new WebViewClient() {
             @Override
             public void onPageFinished(final WebView view, String url) {
-                view.saveWebArchive(context.getCacheDir().getAbsolutePath() + File.separator,
-                        true, new ValueCallback<String>() {
+                File tempFile;
+
+                try {
+                    tempFile = File.createTempFile("bidtorrent", ".mht", context.getCacheDir());
+                } catch (IOException e) {
+                    e.printStackTrace();
+                    return;
+                }
+                view.saveWebArchive(tempFile.getAbsolutePath(),
+                        false, new ValueCallback<String>() {
                             @Override
                             public void onReceiveValue(String value) {
                                 Intent auctionIntent;
