@@ -9,6 +9,7 @@ import android.webkit.WebView;
 import android.webkit.WebViewClient;
 
 import com.bidtorrent.biddingservice.BiddingIntentService;
+import com.bidtorrent.biddingservice.Constants;
 
 import java.io.File;
 
@@ -19,7 +20,7 @@ public class PrefetchReceiver extends BroadcastReceiver {
     @Override
     public void onReceive(final Context context, final Intent intent) {
         Bundle extras = intent.getExtras();
-        String creative = extras.getString(BiddingIntentService.CREATIVE_CODE_ARG);
+        String creative = extras.getString(Constants.CREATIVE_CODE_ARG);
         final WebView webView = new WebView(context);
 
         webView.loadData(creative, "text/html", "utf-8");
@@ -32,12 +33,14 @@ public class PrefetchReceiver extends BroadcastReceiver {
                             public void onReceiveValue(String value) {
                                 Intent auctionIntent;
                                 auctionIntent = new Intent(context, BiddingIntentService.class);
-                                auctionIntent.setAction(BiddingIntentService.FILL_PREFETCH_BUFFER_ACTION);
-                                auctionIntent.putExtra(BiddingIntentService.PREFETCHED_CREATIVE_FILE_ARG, value)
-                                    .putExtra(BiddingIntentService.BID_OPPORTUNITY_ARG,
-                                            intent.getStringExtra(BiddingIntentService.BID_OPPORTUNITY_ARG))
-                                    .putExtra(BiddingIntentService.NOTIFICATION_URL_ARG,
-                                            intent.getStringExtra(BiddingIntentService.NOTIFICATION_URL_ARG));
+                                auctionIntent.setAction(Constants.FILL_PREFETCH_BUFFER_ACTION);
+                                auctionIntent.putExtra(Constants.PREFETCHED_CREATIVE_FILE_ARG, value)
+                                    .putExtra(Constants.BID_OPPORTUNITY_ARG,
+                                            intent.getStringExtra(Constants.BID_OPPORTUNITY_ARG))
+                                    .putExtra(Constants.NOTIFICATION_URL_ARG,
+                                            intent.getStringExtra(Constants.NOTIFICATION_URL_ARG))
+                                    .putExtra(Constants.AUCTION_ID_ARG,
+                                            intent.getLongExtra(Constants.AUCTION_ID_ARG, -1));
 
                                 context.startService(auctionIntent);
                                 view.destroy();

@@ -15,8 +15,8 @@ import com.bidtorrent.bidding.BidOpportunity;
 import com.bidtorrent.bidding.Notificator;
 import com.bidtorrent.bidding.PooledHttpClient;
 import com.bidtorrent.bidding.Size;
+import com.bidtorrent.biddingservice.Constants;
 import com.bidtorrent.biddingservice.receivers.CreativeDisplayReceiver;
-import com.bidtorrent.biddingservice.receivers.PrefetchReceiver;
 import com.bidtorrent.biddingservice.BiddingIntentService;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -43,7 +43,7 @@ public class AuctionActivity extends ActionBarActivity {
                 Bundle extras = intent.getExtras();
 
                 debugView.append(String.format(
-                        "The auction failed: %s\n", extras.getString(BiddingIntentService.AUCTION_ERROR_REASON_ARG)));
+                        "The auction failed: %s\n", extras.getString(Constants.AUCTION_ERROR_REASON_ARG)));
             }
         };
     }
@@ -65,8 +65,8 @@ public class AuctionActivity extends ActionBarActivity {
 
         this.auctionErrorReceiver = this.createAuctionErrorReceiver();
         this.displayReceiver = this.createDisplayReceiver();
-        registerReceiver(this.displayReceiver, new IntentFilter(BiddingIntentService.READY_TO_DISPLAY_AD_INTENT));
-        registerReceiver(this.auctionErrorReceiver, new IntentFilter(BiddingIntentService.AUCTION_FAILED_INTENT));
+        registerReceiver(this.displayReceiver, new IntentFilter(Constants.READY_TO_DISPLAY_AD_INTENT));
+        registerReceiver(this.auctionErrorReceiver, new IntentFilter(Constants.AUCTION_FAILED_INTENT));
     }
 
     @Override
@@ -85,9 +85,9 @@ public class AuctionActivity extends ActionBarActivity {
 
         opp = new BidOpportunity(new Size(300, 250), "bidtorrent.dummy.app");
         gson = new GsonBuilder().create();
-        auctionIntent.setAction(BiddingIntentService.BID_ACTION);
-        auctionIntent.putExtra(BiddingIntentService.REQUESTER_ID_ARG, requesterId);
-        startService(auctionIntent.putExtra(BiddingIntentService.BID_OPPORTUNITY_ARG, gson.toJson(opp)));
+        auctionIntent.setAction(Constants.BID_ACTION);
+        auctionIntent.putExtra(Constants.REQUESTER_ID_ARG, requesterId);
+        startService(auctionIntent.putExtra(Constants.BID_OPPORTUNITY_ARG, gson.toJson(opp)));
     }
 
 }

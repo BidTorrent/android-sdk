@@ -3,14 +3,12 @@ package com.bidtorrent.biddingservice.receivers;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
-import android.os.Bundle;
 import android.view.View;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 
-import com.bidtorrent.bidding.AuctionResult;
 import com.bidtorrent.bidding.Notificator;
-import com.bidtorrent.biddingservice.BiddingIntentService;
+import com.bidtorrent.biddingservice.Constants;
 
 public class CreativeDisplayReceiver extends BroadcastReceiver {
     private final int requesterId;
@@ -30,8 +28,8 @@ public class CreativeDisplayReceiver extends BroadcastReceiver {
         if (intent.getIntExtra("requesterId", -1) != this.requesterId)
             return; // Message not for me :'(
 
-        String creativeFile = intent.getStringExtra(BiddingIntentService.PREFETCHED_CREATIVE_FILE_ARG);
-        final String notificationUrl = intent.getStringExtra(BiddingIntentService.NOTIFICATION_URL_ARG);
+        String creativeFile = intent.getStringExtra(Constants.PREFETCHED_CREATIVE_FILE_ARG);
+        final String notificationUrl = intent.getStringExtra(Constants.NOTIFICATION_URL_ARG);
 
         webView.setVisibility(View.INVISIBLE);
         this.webView.setWebViewClient(new WebViewClient() {
