@@ -10,6 +10,8 @@ import android.webkit.WebViewClient;
 
 import com.bidtorrent.biddingservice.BiddingIntentService;
 
+import java.io.File;
+
 public class PrefetchReceiver extends BroadcastReceiver {
     public PrefetchReceiver() {
     }
@@ -24,7 +26,7 @@ public class PrefetchReceiver extends BroadcastReceiver {
         webView.setWebViewClient(new WebViewClient() {
             @Override
             public void onPageFinished(final WebView view, String url) {
-                view.saveWebArchive(context.getCacheDir().getAbsolutePath(),
+                view.saveWebArchive(context.getCacheDir().getAbsolutePath() + File.separator,
                         true, new ValueCallback<String>() {
                             @Override
                             public void onReceiveValue(String value) {
