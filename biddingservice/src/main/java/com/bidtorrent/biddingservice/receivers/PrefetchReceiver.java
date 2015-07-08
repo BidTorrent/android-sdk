@@ -4,6 +4,7 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.os.Bundle;
+import android.os.Handler;
 import android.webkit.JavascriptInterface;
 import android.webkit.ValueCallback;
 import android.webkit.WebView;
@@ -18,6 +19,13 @@ import java.io.IOException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public class PrefetchReceiver extends BroadcastReceiver {
+    private final Handler handler;
+
+    public PrefetchReceiver(Handler handler)
+    {
+        this.handler = handler;
+    }
+
     private void sendPrefetchedPage(final WebView view, final Context context, final Intent intent)
     {
         final File tempFile;
@@ -61,24 +69,19 @@ public class PrefetchReceiver extends BroadcastReceiver {
         webView.getSettings().setJavaScriptEnabled(true);
         webView.addJavascriptInterface(jsListener, "jslistener");
 
-        webView.setWebViewClient(new WebViewClient() {
+        this.handler.post(new Runnable() {
             @Override
-            public void onPageFinished(final WebView view, String url) {
-                view.postDelayed(new Runnable() {
-                    @Override
-                    public void run() {
-                        if (jsListener.isDone())
-                            sendPrefetchedPage(view, context, intent);
-                        else
-                            view.postDelayed(this, 500);
-                    }
-                }, 500);
-
-                view.loadUrl("javascript:window.onLoad=function(data){ jslistener.setDone() }");
-                view.loadUrl("javascript:if (/loaded|complete/.test(document.readyState)){ jslistener.setDone() }");
+            public void run() {
+                if (jsListener.isDone())
+                    sendPrefetchedPage(webView, context, intent);
+                else
+                    handler.postDelayed(this, 500);
             }
         });
+
         webView.loadData(creative, "text/html", "utf-8");
+        webView.loadUrl("javascript:window.onLoad=function(data){ jslistener.setDone() }");
+        webView.loadUrl("javascript:if (/loaded|complete/.test(document.readyState)){ jslistener.setDone() }");
     }
 
     private class JavaScriptReadyListener {

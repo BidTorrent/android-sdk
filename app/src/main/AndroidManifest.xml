@@ -16,11 +16,6 @@
         </activity>
 
         <service android:name="com.bidtorrent.biddingservice.BiddingIntentService"  />
-        <receiver android:name="com.bidtorrent.biddingservice.receivers.PrefetchReceiver">
-            <intent-filter>
-                <action android:name="Manitralalala" />
-            </intent-filter>
-        </receiver>
     </application>
 
     <uses-permission android:name="android.permission.INTERNET" />

@@ -5,6 +5,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.os.Bundle;
+import android.os.Handler;
 import android.support.v7.app.ActionBarActivity;
 import android.view.View;
 import android.webkit.WebView;
@@ -18,6 +19,7 @@ import com.bidtorrent.bidding.Size;
 import com.bidtorrent.biddingservice.Constants;
 import com.bidtorrent.biddingservice.receivers.CreativeDisplayReceiver;
 import com.bidtorrent.biddingservice.BiddingIntentService;
+import com.bidtorrent.biddingservice.receivers.PrefetchReceiver;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 
@@ -27,12 +29,18 @@ public class AuctionActivity extends ActionBarActivity {
     private WebView webView;
     private BroadcastReceiver auctionErrorReceiver;
     private BroadcastReceiver displayReceiver;
+    private BroadcastReceiver prefetchReceiver;
 
     //FIXME: Can this be the point of entry for our library?
     private BroadcastReceiver createDisplayReceiver()
     {
         return new CreativeDisplayReceiver(webView, 4242,
                 new Notificator(10000, new PooledHttpClient(10000)));
+    }
+
+    private BroadcastReceiver createPrefetchReceiver()
+    {
+        return new PrefetchReceiver(new Handler(this.getMainLooper()));
     }
 
     private BroadcastReceiver createAuctionErrorReceiver()
@@ -65,8 +73,10 @@ public class AuctionActivity extends ActionBarActivity {
 
         this.auctionErrorReceiver = this.createAuctionErrorReceiver();
         this.displayReceiver = this.createDisplayReceiver();
+        this.prefetchReceiver = this.createPrefetchReceiver();
         registerReceiver(this.displayReceiver, new IntentFilter(Constants.READY_TO_DISPLAY_AD_INTENT));
         registerReceiver(this.auctionErrorReceiver, new IntentFilter(Constants.AUCTION_FAILED_INTENT));
+        registerReceiver(this.prefetchReceiver, new IntentFilter(Constants.BID_AVAILABLE_INTENT));
     }
 
     @Override
