@@ -183,7 +183,12 @@ public class BiddingIntentService extends LongLivedService {
 
     @Override
     protected void onHandleIntent(final Intent intent) {
-        String action = intent.getAction();
+        String action;
+
+        if (intent == null)
+            return;
+
+        action = intent.getAction();
 
         if (action == null)
             return;
@@ -253,7 +258,7 @@ public class BiddingIntentService extends LongLivedService {
                     }
                 }
             }
-        }, 1 * 1000);
+        }, 0, 1 * 1000);
 
         return false;
     }
