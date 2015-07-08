@@ -14,6 +14,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.TreeSet;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
 public class PrefetchAdsPool {
@@ -31,12 +32,15 @@ public class PrefetchAdsPool {
     private final MyThreeParametersFunction<BidOpportunity, AuctionResult, Long> triggerPrefetch;
     private final AtomicLong currentAuctionId;
     private long clientExpirationInMillis;
+    private AtomicBoolean hasConnection;
 
     public PrefetchAdsPool(
             PoolSizer pool,
             MyTwoParametersFunction<WaitingClient, ReadyAd> triggerClientDisplay,
             Function<BidOpportunity, ListenableFuture<AuctionResult>> triggerBid,
-            MyThreeParametersFunction<BidOpportunity, AuctionResult, Long> triggerPrefetch, long clientExpirationInMillis) {
+            MyThreeParametersFunction<BidOpportunity, AuctionResult, Long> triggerPrefetch,
+            long clientExpirationInMillis,
+            boolean connectionAvailable) {
         this.pool = pool;
         this.triggerClientDisplay = triggerClientDisplay;
         this.triggerBid = triggerBid;
@@ -47,7 +51,8 @@ public class PrefetchAdsPool {
         this.readyAds = new HashMap<>();
         this.opportunityLocks = new HashMap<>();
         this.waitingClients = new HashMap<>();
-        currentAuctionId = new AtomicLong(0);
+        this.currentAuctionId = new AtomicLong(0);
+        this.hasConnection = new AtomicBoolean(connectionAvailable);
     }
 
     public void addWaitingClient(BidOpportunity opp, int clientId)
@@ -81,10 +86,14 @@ public class PrefetchAdsPool {
         refreshBuckets(opp);
     }
 
+    public void updateConnectionStatus(boolean hasConnection){
+        this.hasConnection.set(hasConnection);
+    }
+
     public void addPrefetchedItem(BidOpportunity opp, long auctionId, String fileName, Date expirationDate){
         synchronized (opportunityLocks.get(opp)){
             PendingPrefetchItem pendingPrefetchItem = this.waitingForPrefetch.get(opp).remove(auctionId);
-            if (pendingPrefetchItem != null){
+            if (this.hasConnection.get() && pendingPrefetchItem != null){
                 this.readyAds.get(opp).add(new ReadyAd(pendingPrefetchItem.getResult(), fileName, expirationDate));
             }
         }
@@ -94,6 +103,8 @@ public class PrefetchAdsPool {
 
     public void refreshBuckets()
     {
+        if (!this.hasConnection.get()) return;
+
         for (BidOpportunity opp: opportunityLocks.keySet()) {
             refreshBuckets(opp);
         }
@@ -105,6 +116,20 @@ public class PrefetchAdsPool {
         refillBidBucket(opp);
         runAuctions(opp);
     }
+
+    public void discardQueuedItems() {
+        for (BidOpportunity opp: opportunityLocks.keySet()) {
+            discardQueuedItems(opp);
+        }
+    }
+
+    private void discardQueuedItems(BidOpportunity opp) {
+        synchronized (opportunityLocks.get(opp)) {
+            this.waitingForBids.get(opp).clear();
+            this.waitingForPrefetch.get(opp).clear();
+        }
+    }
+
 
     private void runAuctions(final BidOpportunity opp){
         synchronized (opportunityLocks.get(opp)) {
@@ -131,8 +156,10 @@ public class PrefetchAdsPool {
     }
 
     private void refillBidBucket(final BidOpportunity opp) {
-
         synchronized (opportunityLocks.get(opp)) {
+            System.out.println("************** Already: " + readyAds.get(opp).size() + this.waitingForPrefetch.get(opp).size() + this.waitingForBids.get(opp).size());
+            System.out.println("************** ToHave: " + waitingClients.get(opp).size() + pool.getPoolSize());
+
             while (this.readyAds.get(opp).size() + this.waitingForPrefetch.get(opp).size() + this.waitingForBids.get(opp).size()
                     < waitingClients.get(opp).size() + pool.getPoolSize()){
                 final long currentId = this.currentAuctionId.incrementAndGet();
@@ -146,8 +173,10 @@ public class PrefetchAdsPool {
     private void onAuctionResultReady(AuctionResult input, BidOpportunity opp, long currentId, Date expirationDate) {
         synchronized (opportunityLocks.get(opp)){
             if (waitingForBids.get(opp).remove(currentId) != null){
-                waitingForPrefetch.get(opp).put(currentId, new PendingPrefetchItem(input, expirationDate));
-                this.triggerPrefetch.apply(opp, input, currentId); //Fixme: CurrentID should be sent
+                if (this.hasConnection.get()){
+                    waitingForPrefetch.get(opp).put(currentId, new PendingPrefetchItem(input, expirationDate));
+                    this.triggerPrefetch.apply(opp, input, currentId);
+                }
             }
         }
     }

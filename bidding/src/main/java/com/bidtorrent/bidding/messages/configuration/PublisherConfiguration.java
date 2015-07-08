@@ -10,9 +10,8 @@ public class PublisherConfiguration {
     public List<String> badv;
     public List<String> bcat;
     public String cur;
-    public Imp imp;
-    public int timeout_soft;
-    public int timeout_hard;
+    public List<Imp> imp;
+    public int tmax;
     public int maximumBidders = 5;
 
 

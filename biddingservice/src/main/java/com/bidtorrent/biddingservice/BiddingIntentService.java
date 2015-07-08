@@ -5,6 +5,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
 import android.util.Log;
 
 import com.bidtorrent.bidding.Auction;
@@ -83,7 +84,7 @@ public class BiddingIntentService extends LongLivedService {
         ListenableFuture<PublisherConfiguration> futurePublisherConfiguration = executor.submit(new Callable<PublisherConfiguration>() {
             @Override
             public PublisherConfiguration call() {
-                return pooledHttpClient.jsonGet("http://www.mirari.fr/2PAt?a=open", PublisherConfiguration.class);
+                return pooledHttpClient.jsonGet("http://wwww.bidtorrent.io/api/publishers/1", PublisherConfiguration.class);
             }
         });
 
@@ -91,7 +92,7 @@ public class BiddingIntentService extends LongLivedService {
             @Override
             public List<BidderConfiguration> call() {
                 Type listType = new TypeToken<List<BidderConfiguration>>(){}.getType();
-                return pooledHttpClient.jsonGet("http://www.mirari.fr/sxq2?a=open", listType);
+                return pooledHttpClient.jsonGet("http://wwww.bidtorrent.io/api/bidders", listType);
             }
         });
 
@@ -125,7 +126,7 @@ public class BiddingIntentService extends LongLivedService {
         this.selector = new BidderSelector(this.publisherConfiguration);
 
         this.auctioneer = new Auctioneer(
-                this.publisherConfiguration.timeout_soft,
+                this.publisherConfiguration.tmax,
                 Executors.newCachedThreadPool());
 
         //FIXME: Poll real bidders
@@ -158,7 +159,7 @@ public class BiddingIntentService extends LongLivedService {
                                     "Kitten",
                                     config.getBid_ep(),
                                     new JsonResponseConverter(),
-                                    publisherConfiguration.timeout_soft));
+                                    publisherConfiguration.tmax));
                         }
 
                         return executor.submit(new Callable<AuctionResult>() {
@@ -175,7 +176,7 @@ public class BiddingIntentService extends LongLivedService {
                     public void apply(BidOpportunity bidOpportunity, AuctionResult auctionResult, Long auctionId) {
                         sendItToPrefetch(auctionResult, bidOpportunity, auctionId);
                     }
-                }, 5 * 60 * 1000);
+                }, 5 * 60 * 1000, this.isNetworkAvailable());
                 //Timeouts?                150000, 5 * 60 * 1000);
         startPoolMonitors();
     }
@@ -323,13 +324,31 @@ public class BiddingIntentService extends LongLivedService {
             public void run() {
                 prefetchedAdsPool.refreshBuckets();
             }
-        }, 0, 5 * 60 * 1000);
+        }, 0, 10000);
 
         registerReceiver(new BroadcastReceiver() {
             @Override
             public void onReceive(Context context, Intent intent) {
-                prefetchedAdsPool.refreshBuckets();
+                ConnectivityManager manager = (ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE);
+                NetworkInfo ni = manager.getActiveNetworkInfo();
+
+                if(isNetworkAvailable()) {
+                    prefetchedAdsPool.updateConnectionStatus(true);
+                    //Backonline refresh pools
+                    prefetchedAdsPool.refreshBuckets();
+                } else {
+                    prefetchedAdsPool.updateConnectionStatus(false);
+                    //offline, clean everything
+                    prefetchedAdsPool.discardQueuedItems();
+                }
             }
         }, new IntentFilter(ConnectivityManager.CONNECTIVITY_ACTION));
+    }
+
+    private boolean isNetworkAvailable() {
+        ConnectivityManager connectivityManager
+                = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
+        NetworkInfo activeNetworkInfo = connectivityManager.getActiveNetworkInfo();
+        return activeNetworkInfo != null && activeNetworkInfo.isConnected();
     }
 }
