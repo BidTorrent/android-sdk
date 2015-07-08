@@ -15,8 +15,6 @@ import com.bidtorrent.biddingservice.Constants;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public class PrefetchReceiver extends BroadcastReceiver {
@@ -58,8 +56,7 @@ public class PrefetchReceiver extends BroadcastReceiver {
         Bundle extras = intent.getExtras();
         String creative = extras.getString(Constants.CREATIVE_CODE_ARG);
         final WebView webView = new WebView(context);
-        final CountDownLatch latch = new CountDownLatch(1);
-        final JavaScriptReadyListener jsListener = new JavaScriptReadyListener(latch);
+        final JavaScriptReadyListener jsListener = new JavaScriptReadyListener();
 
         webView.getSettings().setJavaScriptEnabled(true);
         webView.addJavascriptInterface(jsListener, "jslistener");
@@ -67,30 +64,37 @@ public class PrefetchReceiver extends BroadcastReceiver {
         webView.setWebViewClient(new WebViewClient() {
             @Override
             public void onPageFinished(final WebView view, String url) {
+                view.postDelayed(new Runnable() {
+                    @Override
+                    public void run() {
+                        if (jsListener.isDone())
+                            sendPrefetchedPage(view, context, intent);
+                        else
+                            view.postDelayed(this, 500);
+                    }
+                }, 500);
+
                 view.loadUrl("javascript:window.onLoad=function(data){ jslistener.setDone() }");
                 view.loadUrl("javascript:if (/loaded|complete/.test(document.readyState)){ jslistener.setDone() }");
-
-                try {
-                    latch.await(10000, TimeUnit.MILLISECONDS);
-                    sendPrefetchedPage(view, context, intent);
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                }
             }
         });
         webView.loadData(creative, "text/html", "utf-8");
     }
 
     private class JavaScriptReadyListener {
-        private CountDownLatch latch;
+        private boolean done;
 
-        private JavaScriptReadyListener(CountDownLatch latch) {
-            this.latch = latch;
+        private JavaScriptReadyListener() {
+            this.done = false;
         }
 
         @JavascriptInterface
         public void setDone(){
-            latch.countDown();
+            this.done = true;
+        }
+
+        public boolean isDone() {
+            return done;
         }
     }
 }
