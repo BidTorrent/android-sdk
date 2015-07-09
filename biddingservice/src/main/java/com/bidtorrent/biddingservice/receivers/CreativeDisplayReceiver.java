@@ -33,7 +33,6 @@ public class CreativeDisplayReceiver extends BroadcastReceiver {
         final String notificationUrl = intent.getStringExtra(Constants.NOTIFICATION_URL_ARG);
 
         webView.setVisibility(View.INVISIBLE);
-
         this.webView.setWebViewClient(new WebViewClient() {
             @Override
             public void onPageFinished(final WebView view, String url) {
@@ -44,10 +43,10 @@ public class CreativeDisplayReceiver extends BroadcastReceiver {
                 if (notificationUrl != null)
                     notificator.notify(notificationUrl);
 
-                webView.postDelayed(new Runnable() {
+                view.postDelayed(new Runnable() {
                     @Override
                     public void run() {
-                        if (webView.getHeight() > 0) {
+                        if (view.getHeight() > 0) {
                             view.setVisibility(View.VISIBLE);
                         } else {
                             creativeFilePath.equals(creativeFilePath);
