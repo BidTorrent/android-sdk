@@ -4,11 +4,11 @@ import android.webkit.JavascriptInterface;
 
 import java.util.concurrent.atomic.AtomicBoolean;
 
-public class JavaScriptReadyListener {
+public class JavascriptReadyListener {
     private AtomicBoolean done;
     private Runnable pageSaver;
 
-    public JavaScriptReadyListener(Runnable pageSaver) {
+    public JavascriptReadyListener(Runnable pageSaver) {
         this.pageSaver = pageSaver;
         this.done = new AtomicBoolean(false);
     }

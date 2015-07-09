@@ -14,7 +14,7 @@ import android.webkit.WebViewClient;
 
 import com.bidtorrent.biddingservice.BiddingIntentService;
 import com.bidtorrent.biddingservice.Constants;
-import com.bidtorrent.biddingservice.prefetching.JavaScriptReadyListener;
+import com.bidtorrent.biddingservice.prefetching.JavascriptReadyListener;
 
 import java.io.File;
 import java.io.IOException;
@@ -32,7 +32,7 @@ public class PrefetchReceiver extends BroadcastReceiver {
         Bundle extras = intent.getExtras();
         String creative = extras.getString(Constants.CREATIVE_CODE_ARG);
         final WebView webView = new WebView(context);
-        final JavaScriptReadyListener jsListener = new JavaScriptReadyListener(
+        final JavascriptReadyListener jsListener = new JavascriptReadyListener(
                 new Runnable()
                 {
                     @Override
@@ -43,13 +43,13 @@ public class PrefetchReceiver extends BroadcastReceiver {
 
         webView.getSettings().setJavaScriptEnabled(true);
         webView.getSettings().setCacheMode(WebSettings.LOAD_NO_CACHE);
-        webView.addJavascriptInterface(jsListener, "jslistener");
+        webView.addJavascriptInterface(jsListener, "jsListener");
         webView.loadData(creative, "text/html", "utf-8");
         webView.setWebViewClient(new WebViewClient() {
 
             @Override
             public void onPageFinished(WebView view, String url) {
-                view.loadUrl("javascript:if (\"complete\" == document.readyState){ jslistener.setDone() }");
+                view.loadUrl("javascript:if (\"complete\" == document.readyState){ jsListener.setDone() }");
             }
 
             @Override
