@@ -46,7 +46,7 @@ public class JavaScriptReadyListener {
             return;
         }
 
-        handler.post(
+        handler.postDelayed(
                 new Runnable() {
                     @Override
                     public void run() {
@@ -71,6 +71,6 @@ public class JavaScriptReadyListener {
                                     }
                                 });
                     }
-                });
+                }, 1000);
     }
 }

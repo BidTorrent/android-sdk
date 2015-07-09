@@ -84,7 +84,11 @@ public class BiddingIntentService extends LongLivedService {
         ListenableFuture<PublisherConfiguration> futurePublisherConfiguration = executor.submit(new Callable<PublisherConfiguration>() {
             @Override
             public PublisherConfiguration call() {
-                return pooledHttpClient.jsonGet("http://wwww.bidtorrent.io/api/publishers/1", PublisherConfiguration.class);
+                try {
+                    return pooledHttpClient.jsonGet("http://wwww.bidtorrent.io/api/publishers/1", PublisherConfiguration.class);
+                } catch (Exception e){
+                    return new PublisherConfiguration();
+                }
             }
         });
 
