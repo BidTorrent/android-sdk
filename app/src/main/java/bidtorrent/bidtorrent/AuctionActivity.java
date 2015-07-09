@@ -59,10 +59,15 @@ public class AuctionActivity extends ActionBarActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
         setContentView(R.layout.activity_auction);
-        bidButton = (Button)findViewById(R.id.bidButton);
-        debugView = (TextView)findViewById(R.id.auctionDebug);
+
+        this.bidButton = (Button)findViewById(R.id.bidButton);
+        this.debugView = (TextView)findViewById(R.id.auctionDebug);
         this.webView = (WebView)findViewById(R.id.webView);
+        this.auctionErrorReceiver = this.createAuctionErrorReceiver();
+        this.displayReceiver = this.createDisplayReceiver();
+        this.prefetchReceiver = this.createPrefetchReceiver();
 
         bidButton.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -71,33 +76,34 @@ public class AuctionActivity extends ActionBarActivity {
             }
         });
 
-        this.auctionErrorReceiver = this.createAuctionErrorReceiver();
-        this.displayReceiver = this.createDisplayReceiver();
-        this.prefetchReceiver = this.createPrefetchReceiver();
         registerReceiver(this.displayReceiver, new IntentFilter(Constants.READY_TO_DISPLAY_AD_INTENT));
         registerReceiver(this.auctionErrorReceiver, new IntentFilter(Constants.AUCTION_FAILED_INTENT));
         registerReceiver(this.prefetchReceiver, new IntentFilter(Constants.BID_AVAILABLE_INTENT));
     }
 
     @Override
-    protected void onDestroy() {
+    protected void onDestroy(){
         super.onDestroy();
-        this.unregisterReceiver(auctionErrorReceiver);
-        this.unregisterReceiver(displayReceiver);
+
+        this.unregisterReceiver(this.prefetchReceiver);
+        this.unregisterReceiver(this.auctionErrorReceiver);
+        this.unregisterReceiver(this.displayReceiver);
     }
 
     private void runAuction()
     {
-        Intent auctionIntent = new Intent(this, BiddingIntentService.class);
-        int requesterId = 4242;
-        Gson gson;
+        Intent auctionIntent;
         BidOpportunity opp;
+        int requesterId = 4242;
 
         opp = new BidOpportunity(new Size(300, 250), "bidtorrent.dummy.app");
-        gson = new GsonBuilder().create();
-        auctionIntent.setAction(Constants.BID_ACTION);
-        auctionIntent.putExtra(Constants.REQUESTER_ID_ARG, requesterId);
-        startService(auctionIntent.putExtra(Constants.BID_OPPORTUNITY_ARG, gson.toJson(opp)));
+
+        auctionIntent = new Intent(this, BiddingIntentService.class)
+            .setAction(Constants.BID_ACTION)
+            .putExtra(Constants.REQUESTER_ID_ARG, requesterId)
+            .putExtra(Constants.BID_OPPORTUNITY_ARG, new GsonBuilder().create().toJson(opp));
+
+        this.startService(auctionIntent);
     }
 
 }

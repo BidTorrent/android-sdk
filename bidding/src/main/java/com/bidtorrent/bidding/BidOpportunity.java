@@ -8,6 +8,8 @@ public class BidOpportunity {
     private String appName;
 
     public BidOpportunity(Size size, String appName) {
+        this.width = size.getWidth();
+        this.height = size.getHeight();
         this.appName = appName;
     }
 
