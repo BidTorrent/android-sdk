@@ -38,16 +38,16 @@ public class CreativeDisplayReceiver extends BroadcastReceiver {
             public void onPageFinished(final WebView view, String url) {
                 final String creativeFilePath = intent.getStringExtra(Constants.PREFETCHED_CREATIVE_FILE_ARG);
 
-                super.onPageFinished(view, url);
+                super.onPageFinished(webView, url);
 
                 if (notificationUrl != null)
                     notificator.notify(notificationUrl);
 
-                view.postDelayed(new Runnable() {
+                webView.postDelayed(new Runnable() {
                     @Override
                     public void run() {
-                        if (view.getHeight() > 0) {
-                            view.setVisibility(View.VISIBLE);
+                        if (webView.getHeight() > 0) {
+                            webView.setVisibility(View.VISIBLE);
                         } else {
                             creativeFilePath.equals(creativeFilePath);
                             Toast.makeText(context, "Invalid ad, not showing", Toast.LENGTH_LONG).show();
@@ -58,5 +58,6 @@ public class CreativeDisplayReceiver extends BroadcastReceiver {
         });
 
         webView.loadUrl("file://" + creativeFile);
+        System.out.println(creativeFile);
     }
 }
