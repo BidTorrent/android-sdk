@@ -14,7 +14,7 @@ import android.webkit.WebViewClient;
 
 import com.bidtorrent.biddingservice.BiddingIntentService;
 import com.bidtorrent.biddingservice.Constants;
-import com.bidtorrent.biddingservice.prefetching.JavascriptReadyListener;
+import com.bidtorrent.biddingservice.prefetching.JavaScriptReadyListener;
 
 import java.io.File;
 import java.io.IOException;
@@ -32,7 +32,7 @@ public class PrefetchReceiver extends BroadcastReceiver {
         Bundle extras = intent.getExtras();
         String creative = extras.getString(Constants.CREATIVE_CODE_ARG);
         final WebView webView = new WebView(context);
-        final JavascriptReadyListener jsListener = new JavascriptReadyListener(
+        final JavaScriptReadyListener jsListener = new JavaScriptReadyListener(
                 new Runnable()
                 {
                     @Override
