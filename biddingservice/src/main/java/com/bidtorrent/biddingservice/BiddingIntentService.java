@@ -15,6 +15,10 @@ import com.bidtorrent.bidding.BidderSelector;
 import com.bidtorrent.bidding.PooledHttpClient;
 import com.bidtorrent.bidding.messages.configuration.BidderConfiguration;
 import com.bidtorrent.bidding.messages.configuration.PublisherConfiguration;
+import com.bidtorrent.biddingservice.actions.ActionFactory;
+import com.bidtorrent.biddingservice.actions.BidAction;
+import com.bidtorrent.biddingservice.actions.PrefetchFailedAction;
+import com.bidtorrent.biddingservice.actions.StorePrefetchedCreativeAction;
 import com.bidtorrent.biddingservice.functions.TriggerBidFunction;
 import com.bidtorrent.biddingservice.pooling.MyThreeParametersFunction;
 import com.bidtorrent.biddingservice.pooling.MyTwoParametersFunction;
@@ -155,41 +159,8 @@ public class BiddingIntentService extends LongLivedService {
         if (action == null)
             return;
 
-        if (this.handleMissingConfiguration(intent)) {
-            if (intent.getAction().equals(Constants.BID_ACTION))
-                this.bid(intent);
-            else if (intent.getAction().equals(Constants.FILL_PREFETCH_BUFFER_ACTION))
-                this.storePrefetchedCreative(intent);
-            else if (intent.getAction().equals(Constants.PREFETCH_FAILED_ACTION))
-                this.prefetchFailed(intent);
-        }
-    }
-
-    private void prefetchFailed(Intent intent) {
-        BidOpportunity bidOpportunity;
-        bidOpportunity = getBidOpportunity(intent);
-
-        long auctionId = intent.getLongExtra(Constants.AUCTION_ID_ARG, -1);
-
-        this.prefetchedAdsPool.prefetchFailed(bidOpportunity, auctionId);
-    }
-
-    private void bid(final Intent intent)
-    {
-        BidOpportunity bidOpportunity;
-        int requesterId;
-
-        bidOpportunity = getBidOpportunity(intent);
-        requesterId = getRequesterId(intent);
-
-        if (bidOpportunity == null) {
-            notifyFailure(String.format(
-                    "Failed to deserialize the request (should be in the %s field of the intent)",
-                    Constants.BID_OPPORTUNITY_ARG));
-            return;
-        }
-
-        prefetchedAdsPool.addWaitingClient(bidOpportunity, requesterId);
+        if (this.handleMissingConfiguration(intent))
+            new ActionFactory(intent).create(this, this.prefetchedAdsPool).handleIntent(intent);
     }
 
     /**
@@ -236,15 +207,6 @@ public class BiddingIntentService extends LongLivedService {
         return false;
     }
 
-    private void notifyFailure(String errorMsg)
-    {
-        Intent responseAvailableIntent = new Intent(Constants.AUCTION_FAILED_INTENT);
-
-        responseAvailableIntent.putExtra(Constants.AUCTION_ERROR_REASON_ARG, errorMsg);
-
-        this.sendBroadcast(responseAvailableIntent);
-    }
-
     private void sendItToPrefetch(AuctionResult auctionResult, BidOpportunity bidOpportunity, Long auctionId)
     {
         Intent responseAvailableIntent = new Intent(Constants.BID_AVAILABLE_INTENT);
@@ -262,34 +224,6 @@ public class BiddingIntentService extends LongLivedService {
                 .putExtra(Constants.PREFETCHED_CREATIVE_FILE_ARG, ad.getCacheFileName());
                 //FIXME: .putExtra(NOTIFICATION_URL_ARG, ad.getResult().getWinningBid().buildNotificationUrl());
         sendBroadcast(readyDisplay);
-    }
-
-    private void storePrefetchedCreative(final Intent intent) {
-        BidOpportunity bidOpportunity;
-
-        bidOpportunity = getBidOpportunity(intent);
-        String creativeFilePath = intent.getStringExtra(Constants.PREFETCHED_CREATIVE_FILE_ARG);
-
-        // FIXME expirationDate from where?
-        long expirationDate = intent.getLongExtra(Constants.PREFETCHED_CREATIVE_EXPIRATION_ARG, System.currentTimeMillis());
-        long auctionId = intent.getLongExtra(Constants.AUCTION_ID_ARG, -1);
-
-        prefetchedAdsPool.addPrefetchedItem(
-                bidOpportunity,
-                auctionId,
-                creativeFilePath,
-                new Date(expirationDate + 10000000));
-    }
-
-    private int getRequesterId(Intent intent) {
-        return intent.getIntExtra(Constants.REQUESTER_ID_ARG, 0);
-    }
-
-    private BidOpportunity getBidOpportunity(Intent intent) {
-        BidOpportunity bidOpportunity;
-
-        bidOpportunity = gson.fromJson(intent.getStringExtra(Constants.BID_OPPORTUNITY_ARG), BidOpportunity.class);
-        return bidOpportunity;
     }
 
     private void startPoolMonitors() {
