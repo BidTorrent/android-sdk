@@ -18,17 +18,12 @@ public class Notificator {
     private final PooledHttpClient pooledHttpClient;
     private final ExecutorService executorService;
 
-    public Notificator(int timeout, PooledHttpClient pooledHttpClient) {
+    public Notificator(PooledHttpClient pooledHttpClient) {
         this.executorService = Executors.newCachedThreadPool();
         this.pooledHttpClient = pooledHttpClient;
     }
 
     public void notify(final String notifyUrl){
-        executorService.submit( new Runnable() {
-            @Override
-            public void run() {
-                pooledHttpClient.doGet(notifyUrl);
-            }
-        });
+        pooledHttpClient.doGet(notifyUrl);
     }
 }

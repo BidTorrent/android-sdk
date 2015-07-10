@@ -4,6 +4,7 @@ import android.content.Context;
 import android.content.Intent;
 
 import com.bidtorrent.bidding.Notificator;
+import com.bidtorrent.bidding.messages.configuration.PublisherConfiguration;
 import com.bidtorrent.biddingservice.Constants;
 import com.bidtorrent.biddingservice.pooling.PrefetchAdsPool;
 
@@ -15,7 +16,11 @@ public class ActionFactory {
         this.intent = intent;
     }
 
-    public ServiceAction create(Context context, PrefetchAdsPool prefetchedAdsPool, Notificator notificator){
+    public ServiceAction create(
+            Context context,
+            PrefetchAdsPool prefetchedAdsPool,
+            Notificator notificator,
+            PublisherConfiguration publisherConfiguration){
         switch (this.intent.getAction()){
             case Constants.BID_ACTION:
                 return new BidAction(context, prefetchedAdsPool);
@@ -24,7 +29,7 @@ public class ActionFactory {
             case Constants.PREFETCH_FAILED_ACTION:
                 return new PrefetchFailedAction(prefetchedAdsPool);
             case Constants.NOTIFICATION_ACTION:
-                return new NotificationsAction(notificator);
+                return new NotificationsAction(notificator, publisherConfiguration);
 
             default:
                 return null;

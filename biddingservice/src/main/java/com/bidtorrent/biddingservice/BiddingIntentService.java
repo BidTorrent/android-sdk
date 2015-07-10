@@ -71,7 +71,7 @@ public class BiddingIntentService extends LongLivedService {
         this.gson = new GsonBuilder().create();
         this.executor = MoreExecutors.listeningDecorator(Executors.newCachedThreadPool());
         this.pooledHttpClient = new PooledHttpClient(1000, isNetworkAvailable());
-        this.notificator = new Notificator(1000000, this.pooledHttpClient);
+        this.notificator = new Notificator(this.pooledHttpClient);
         this.pendingIntentsTimer = new Timer();
 
 /*        ListenableFuture<PublisherConfiguration> futurePublisherConfiguration = pooledHttpClient.jsonGet(
@@ -159,7 +159,11 @@ public class BiddingIntentService extends LongLivedService {
             return;
 
         if (this.handleMissingConfiguration(intent))
-            new ActionFactory(intent).create(this, this.prefetchedAdsPool, notificator).handleIntent(intent);
+            new ActionFactory(intent).create(
+                    this,
+                    this.prefetchedAdsPool,
+                    notificator,
+                    publisherConfiguration).handleIntent(intent);
     }
 
     /**
