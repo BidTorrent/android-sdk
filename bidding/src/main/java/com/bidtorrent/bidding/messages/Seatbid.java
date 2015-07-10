@@ -1,8 +1,9 @@
 package com.bidtorrent.bidding.messages;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 
-public class Seatbid {
+public class Seatbid implements Serializable {
     public ArrayList<Bid> bid;
 
     public Seatbid(Bid bid) {

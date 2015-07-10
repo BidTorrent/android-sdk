@@ -10,13 +10,16 @@ public final class Constants {
     public static final String BID_OPPORTUNITY_ARG = "dsadas";
     public static final String NOTIFICATION_URL_ARG = "notif";
     public static final String AUCTION_ID_ARG = "auction-id";
+    public static final String AUCTION_RESULT_ARG = "auctionResult";
+
     // Intents
-    public static final String BID_AVAILABLE_INTENT = "Manitralalala";
-    public static final String AUCTION_FAILED_INTENT = "Manitrololol";
-    public static final String READY_TO_DISPLAY_AD_INTENT = "manitrataratarata";
+    public static final String BID_AVAILABLE_INTENT = "bid-available";
+    public static final String AUCTION_FAILED_INTENT = "auction-failed";
+    public static final String READY_TO_DISPLAY_AD_INTENT = "ready-to-display";
+
     // Actions
     public static final String BID_ACTION = "please-bid";
     public static final String FILL_PREFETCH_BUFFER_ACTION = "please-store";
     public static final String PREFETCH_FAILED_ACTION = "prefetch-failed";
-
+    public static final String NOTIFICATION_ACTION = "notify";
 }

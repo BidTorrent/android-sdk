@@ -12,13 +12,11 @@ import com.bidtorrent.bidding.AuctionResult;
 import com.bidtorrent.bidding.Auctioneer;
 import com.bidtorrent.bidding.BidOpportunity;
 import com.bidtorrent.bidding.BidderSelector;
+import com.bidtorrent.bidding.Notificator;
 import com.bidtorrent.bidding.PooledHttpClient;
 import com.bidtorrent.bidding.messages.configuration.BidderConfiguration;
 import com.bidtorrent.bidding.messages.configuration.PublisherConfiguration;
 import com.bidtorrent.biddingservice.actions.ActionFactory;
-import com.bidtorrent.biddingservice.actions.BidAction;
-import com.bidtorrent.biddingservice.actions.PrefetchFailedAction;
-import com.bidtorrent.biddingservice.actions.StorePrefetchedCreativeAction;
 import com.bidtorrent.biddingservice.functions.TriggerBidFunction;
 import com.bidtorrent.biddingservice.pooling.MyThreeParametersFunction;
 import com.bidtorrent.biddingservice.pooling.MyTwoParametersFunction;
@@ -36,7 +34,6 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 
 import java.lang.reflect.Type;
-import java.util.Date;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Queue;
@@ -57,6 +54,7 @@ public class BiddingIntentService extends LongLivedService {
     private boolean configurationLoaded;
     private Queue<Intent> pendingIntents;
     private Timer pendingIntentsTimer;
+    private Notificator notificator;
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
@@ -73,6 +71,7 @@ public class BiddingIntentService extends LongLivedService {
         this.gson = new GsonBuilder().create();
         this.executor = MoreExecutors.listeningDecorator(Executors.newCachedThreadPool());
         this.pooledHttpClient = new PooledHttpClient(1000, isNetworkAvailable());
+        this.notificator = new Notificator(1000000, this.pooledHttpClient);
         this.pendingIntentsTimer = new Timer();
 
 /*        ListenableFuture<PublisherConfiguration> futurePublisherConfiguration = pooledHttpClient.jsonGet(
@@ -160,7 +159,7 @@ public class BiddingIntentService extends LongLivedService {
             return;
 
         if (this.handleMissingConfiguration(intent))
-            new ActionFactory(intent).create(this, this.prefetchedAdsPool).handleIntent(intent);
+            new ActionFactory(intent).create(this, this.prefetchedAdsPool, notificator).handleIntent(intent);
     }
 
     /**
@@ -221,8 +220,9 @@ public class BiddingIntentService extends LongLivedService {
     private void sendReadyToDisplayAd(WaitingClient client, ReadyAd ad) {
         Intent readyDisplay = new Intent(Constants.READY_TO_DISPLAY_AD_INTENT);
         readyDisplay.putExtra(Constants.REQUESTER_ID_ARG, client.getId())
-                .putExtra(Constants.PREFETCHED_CREATIVE_FILE_ARG, ad.getCacheFileName());
-                //FIXME: .putExtra(NOTIFICATION_URL_ARG, ad.getResult().getWinningBid().buildNotificationUrl());
+            .putExtra(Constants.PREFETCHED_CREATIVE_FILE_ARG, ad.getCacheFileName())
+            .putExtra(Constants.AUCTION_RESULT_ARG, ad.getResult());
+
         sendBroadcast(readyDisplay);
     }
 

@@ -1,6 +1,8 @@
 package com.bidtorrent.bidding.messages;
 
-public class Bid {
+import java.io.Serializable;
+
+public class Bid implements Serializable {
     public String id;
     public String impid;
     public float price;

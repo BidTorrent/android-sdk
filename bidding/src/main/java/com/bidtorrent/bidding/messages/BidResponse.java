@@ -1,8 +1,9 @@
 package com.bidtorrent.bidding.messages;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 
-public class BidResponse implements Comparable  {
+public class BidResponse implements Comparable, Serializable {
 
     public long bidderId;
     public String id;

@@ -2,9 +2,10 @@ package com.bidtorrent.bidding;
 
 import com.bidtorrent.bidding.messages.BidResponse;
 
+import java.io.Serializable;
 import java.util.Collection;
 
-public class AuctionResult {
+public class AuctionResult implements Serializable {
     private IBidder winningBidder;
     private final BidResponse winningBid;
     private final float winningPrice;

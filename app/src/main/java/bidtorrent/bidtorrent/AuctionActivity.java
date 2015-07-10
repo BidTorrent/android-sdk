@@ -32,20 +32,15 @@ public class AuctionActivity extends ActionBarActivity {
     private BroadcastReceiver prefetchReceiver;
 
     //FIXME: Can this be the point of entry for our library?
-    private BroadcastReceiver createDisplayReceiver()
-    {
-        return new CreativeDisplayReceiver(webView, 4242, null );
-                //new Notificator(10000, new PooledHttpClient(10000, true)));
-        //FIXME: notifications moved to service
+    private BroadcastReceiver createDisplayReceiver() {
+        return new CreativeDisplayReceiver(webView, 4242);
     }
 
-    private BroadcastReceiver createPrefetchReceiver()
-    {
+    private BroadcastReceiver createPrefetchReceiver() {
         return new PrefetchReceiver(new Handler(this.getMainLooper()));
     }
 
-    private BroadcastReceiver createAuctionErrorReceiver()
-    {
+    private BroadcastReceiver createAuctionErrorReceiver() {
         return new BroadcastReceiver() {
             @Override
             public void onReceive(Context context, Intent intent) {
