@@ -8,6 +8,8 @@ public final class Constants {
     public static final String PREFETCHED_CREATIVE_EXPIRATION_ARG = "dontexpireme";
     public static final String REQUESTER_ID_ARG = "requesterId";
     public static final String BID_OPPORTUNITY_ARG = "dsadas";
+    public static final String NOTIFICATION_URL_ARG = "notif";
+    public static final String AUCTION_ID_ARG = "auction-id";
     // Intents
     public static final String BID_AVAILABLE_INTENT = "Manitralalala";
     public static final String AUCTION_FAILED_INTENT = "Manitrololol";
@@ -16,7 +18,5 @@ public final class Constants {
     public static final String BID_ACTION = "please-bid";
     public static final String FILL_PREFETCH_BUFFER_ACTION = "please-store";
     public static final String PREFETCH_FAILED_ACTION = "prefetch-failed";
-    public static final String NOTIFICATION_URL_ARG = "notif";
-    public static final String AUCTION_ID_ARG = "auction-id";
 
 }

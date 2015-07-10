@@ -8,26 +8,20 @@ import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.util.Log;
 
-import com.bidtorrent.bidding.Auction;
 import com.bidtorrent.bidding.AuctionResult;
 import com.bidtorrent.bidding.Auctioneer;
 import com.bidtorrent.bidding.BidOpportunity;
-import com.bidtorrent.bidding.PooledHttpClient;
-import com.bidtorrent.bidding.messages.BidResponse;
-import com.bidtorrent.bidding.messages.configuration.BidderConfiguration;
 import com.bidtorrent.bidding.BidderSelector;
-import com.bidtorrent.bidding.ConstantBidder;
-import com.bidtorrent.bidding.HttpBidder;
-import com.bidtorrent.bidding.IBidder;
-import com.bidtorrent.bidding.JsonResponseConverter;
+import com.bidtorrent.bidding.PooledHttpClient;
+import com.bidtorrent.bidding.messages.configuration.BidderConfiguration;
 import com.bidtorrent.bidding.messages.configuration.PublisherConfiguration;
+import com.bidtorrent.biddingservice.functions.TriggerBidFunction;
 import com.bidtorrent.biddingservice.pooling.MyThreeParametersFunction;
 import com.bidtorrent.biddingservice.pooling.MyTwoParametersFunction;
 import com.bidtorrent.biddingservice.pooling.PoolSizer;
 import com.bidtorrent.biddingservice.pooling.PrefetchAdsPool;
 import com.bidtorrent.biddingservice.pooling.ReadyAd;
 import com.bidtorrent.biddingservice.pooling.WaitingClient;
-import com.google.common.base.Function;
 import com.google.common.reflect.TypeToken;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
@@ -38,17 +32,13 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 
 import java.lang.reflect.Type;
-import java.util.ArrayList;
 import java.util.Date;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Queue;
 import java.util.Timer;
 import java.util.TimerTask;
-import java.util.concurrent.Callable;
 import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
 
 public class BiddingIntentService extends LongLivedService {
 
@@ -137,36 +127,12 @@ public class BiddingIntentService extends LongLivedService {
                         sendReadyToDisplayAd(client, ad);
                     }
                 },
-                new Function<BidOpportunity, ListenableFuture<AuctionResult>>() {
-                    @Override
-                    public ListenableFuture<AuctionResult> apply(final BidOpportunity bidOpportunity) {
-                        final List<IBidder> bidders;
-                        String defaultCreative = "<html><head><meta name=\"viewport\" content=\"initial-scale=1, width=300, user-scalable=no\" /></head><body style=\"padding:0px; margin:0px\"><img width=\"100%\" src=\"http://adlb.me/bidder/cache/criteo_I.jpg_320x250.jpeg\"/></body></html>";
-
-                        bidders = new ArrayList<>();
-
-                        bidders.add(new ConstantBidder(4, new BidResponse(4, 0.02f, 1, "", defaultCreative, "NOTIFYME")));
-                        bidders.add(new ConstantBidder(3, new BidResponse(3, 0.03f, 1, "", defaultCreative, "NOTIFYMENOT")));
-
-                        for (BidderConfiguration config : selector.getAvailableBidders()) {
-                            bidders.add(new HttpBidder(
-                                    1,
-                                    "Kitten",
-                                    config.bid_ep,
-                                    new JsonResponseConverter(),
-                                    publisherConfiguration.tmax,
-                                    pooledHttpClient));
-                        }
-
-                        return executor.submit(new Callable<AuctionResult>() {
-                            @Override
-                            public AuctionResult call() throws Exception {
-                                Future<AuctionResult> auctionResultFuture = auctioneer.runAuction(new Auction(bidOpportunity, bidders, 0.02f));
-                                return auctionResultFuture.get(10000, TimeUnit.MILLISECONDS);
-                            }
-                        });
-                    }
-                },
+                new TriggerBidFunction(
+                        this.selector,
+                        this.publisherConfiguration,
+                        this.pooledHttpClient,
+                        this.executor,
+                        this.auctioneer),
                 new MyThreeParametersFunction<BidOpportunity, AuctionResult, Long>() {
                     @Override
                     public void apply(BidOpportunity bidOpportunity, AuctionResult auctionResult, Long auctionId) {
