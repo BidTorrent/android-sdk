@@ -49,7 +49,34 @@ public class PrefetchReceiver extends BroadcastReceiver {
 
             @Override
             public void onPageFinished(WebView view, String url) {
-                view.loadUrl("javascript:if (\"complete\" == document.readyState){ jsListener.setDone() }");
+                view.loadUrl("javascript:function isImageOk(img) {\n" +
+                        "  if (!img.complete)\n" +
+                        "    return false;\n" +
+                        "\n" +
+                        "  if (typeof img.naturalWidth != \"undefined\" && img.naturalWidth == 0)\n" +
+                        "    return false;\n" +
+                        "\n" +
+                        "  return true;\n" +
+                        "}\n" +
+                        "\n" +
+                        "function allImagesOK()\n" +
+                        "{\n" +
+                        "  var failedImages = 0;\n" +
+                        "\n" +
+                        "  for (var i = 0; i < document.images.length; i++) {\n" +
+                        "    if (!isImageOk(document.images[i]))\n" +
+                        "      failedImages += 1;\n" +
+                        "  }\n" +
+                        "  \n" +
+                        "  return (failedImages == 0);\n" +
+                        "}\n");
+                view.loadUrl("javascript:var interval = setInterval(function() { \n" +
+                        "  if (allImagesOK()){\n" +
+                        "    window.clearInterval(interval);\n" +
+                        "    jsListener.setDone();\n" +
+                        "  }" +
+                        "}, 100);");
+
             }
 
             @Override
@@ -59,8 +86,7 @@ public class PrefetchReceiver extends BroadcastReceiver {
         });
     }
 
-    private void sendPrefetchedData(final Context context, final WebView webView, final Intent intent)
-    {
+    private void sendPrefetchedData(final Context context, final WebView webView, final Intent intent) {
         final File tempFile;
 
         try {
@@ -71,19 +97,19 @@ public class PrefetchReceiver extends BroadcastReceiver {
         }
 
         handler.post(
-            new Runnable() {
-            @Override
-            public void run() {
-                webView.saveWebArchive(tempFile.getAbsolutePath(),
-                        false, new ValueCallback<String>() {
-                            @Override
-                            public void onReceiveValue(String value) {
-                                Intent auctionIntent;
-                                auctionIntent = new Intent(context, BiddingIntentService.class);
-                                auctionIntent.setAction(Constants.FILL_PREFETCH_BUFFER_ACTION);
-                                auctionIntent.putExtra(Constants.PREFETCHED_CREATIVE_FILE_ARG, value)
-                                        .putExtra(Constants.BID_OPPORTUNITY_ARG,
-                                                intent.getStringExtra(Constants.BID_OPPORTUNITY_ARG))
+                new Runnable() {
+                    @Override
+                    public void run() {
+                        webView.saveWebArchive(tempFile.getAbsolutePath(),
+                                false, new ValueCallback<String>() {
+                                    @Override
+                                    public void onReceiveValue(String value) {
+                                        Intent auctionIntent;
+                                        auctionIntent = new Intent(context, BiddingIntentService.class);
+                                        auctionIntent.setAction(Constants.FILL_PREFETCH_BUFFER_ACTION);
+                                        auctionIntent.putExtra(Constants.PREFETCHED_CREATIVE_FILE_ARG, value)
+                                                .putExtra(Constants.BID_OPPORTUNITY_ARG,
+                                                        intent.getStringExtra(Constants.BID_OPPORTUNITY_ARG))
                                         .putExtra(Constants.NOTIFICATION_URL_ARG,
                                                 intent.getStringExtra(Constants.NOTIFICATION_URL_ARG))
                                         .putExtra(Constants.AUCTION_ID_ARG,
