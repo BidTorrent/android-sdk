@@ -78,7 +78,7 @@ public class Auctioneer implements IAuctioneer {
         else
             secondPrice = floor;
 
-        return new AuctionResult(winningBid, secondPrice, getBidderById(winningBid.getBidderId(), bidders), responses, runnerUp);
+        return new AuctionResult(winningBid, secondPrice, getBidderById(winningBid.getBidderId(), bidders), sortedResponses, runnerUp);
     }
 
     private static Collection<ListenableFuture<BidResponse>> pushResponseFutures(

@@ -10,6 +10,8 @@ import android.support.v7.app.ActionBarActivity;
 import android.view.View;
 import android.webkit.WebView;
 import android.widget.Button;
+import android.widget.FrameLayout;
+import android.widget.LinearLayout;
 import android.widget.TextView;
 
 import com.bidtorrent.bidding.BidOpportunity;
@@ -30,10 +32,11 @@ public class AuctionActivity extends ActionBarActivity {
     private BroadcastReceiver auctionErrorReceiver;
     private BroadcastReceiver displayReceiver;
     private BroadcastReceiver prefetchReceiver;
+    private FrameLayout debugLayout;
 
     //FIXME: Can this be the point of entry for our library?
     private BroadcastReceiver createDisplayReceiver() {
-        return new CreativeDisplayReceiver(webView, 4242);
+        return new CreativeDisplayReceiver(webView, 4242, debugLayout);
     }
 
     private BroadcastReceiver createPrefetchReceiver() {
@@ -61,9 +64,11 @@ public class AuctionActivity extends ActionBarActivity {
         this.bidButton = (Button)findViewById(R.id.bidButton);
         this.debugView = (TextView)findViewById(R.id.auctionDebug);
         this.webView = (WebView)findViewById(R.id.webView);
+        this.debugLayout = (FrameLayout) findViewById(R.id.debugLayout);
         this.auctionErrorReceiver = this.createAuctionErrorReceiver();
         this.displayReceiver = this.createDisplayReceiver();
         this.prefetchReceiver = this.createPrefetchReceiver();
+
 
         bidButton.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -95,6 +100,7 @@ public class AuctionActivity extends ActionBarActivity {
 
         opp = new BidOpportunity(new Size(300, 250), "bidtorrent.dummy.app");
 
+        this.debugLayout.removeAllViews();
         auctionIntent = new Intent(this, BiddingIntentService.class)
             .setAction(Constants.BID_ACTION)
             .putExtra(Constants.REQUESTER_ID_ARG, requesterId)

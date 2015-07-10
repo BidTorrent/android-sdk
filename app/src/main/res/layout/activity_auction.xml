@@ -34,4 +34,13 @@
         android:layout_alignEnd="@+id/auctionDebug"
         android:visibility="invisible" />
 
+    <FrameLayout
+        android:orientation="vertical"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:id="@+id/debugLayout"
+        android:layout_below="@+id/auctionDebug"
+        android:layout_alignParentStart="true"
+        android:layout_alignBottom="@+id/webView" />
+
 </RelativeLayout>
