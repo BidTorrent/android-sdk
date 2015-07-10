@@ -20,10 +20,10 @@ import java.io.File;
 import java.io.IOException;
 
 public class PrefetchReceiver extends BroadcastReceiver {
+
     private final Handler handler;
 
-    public PrefetchReceiver(Handler handler)
-    {
+    public PrefetchReceiver(Handler handler) {
         this.handler = handler;
     }
 
@@ -32,58 +32,15 @@ public class PrefetchReceiver extends BroadcastReceiver {
         Bundle extras = intent.getExtras();
         String creative = extras.getString(Constants.CREATIVE_CODE_ARG);
         final WebView webView = new WebView(context);
-        final JavaScriptReadyListener jsListener = new JavaScriptReadyListener(
-                new Runnable()
-                {
+        JavaScriptReadyListener.hookReadyEvent(
+                webView,
+                new Runnable() {
                     @Override
                     public void run() {
                         sendPrefetchedData(context, webView, intent);
                     }
                 });
-
-        webView.getSettings().setJavaScriptEnabled(true);
-        webView.getSettings().setCacheMode(WebSettings.LOAD_NO_CACHE);
-        webView.addJavascriptInterface(jsListener, "jsListener");
         webView.loadData(creative, "text/html", "utf-8");
-        webView.setWebViewClient(new WebViewClient() {
-
-            @Override
-            public void onPageFinished(WebView view, String url) {
-                view.loadUrl("javascript:function isImageOk(img) {\n" +
-                        "  if (!img.complete)\n" +
-                        "    return false;\n" +
-                        "\n" +
-                        "  if (typeof img.naturalWidth != \"undefined\" && img.naturalWidth == 0)\n" +
-                        "    return false;\n" +
-                        "\n" +
-                        "  return true;\n" +
-                        "}\n" +
-                        "\n" +
-                        "function allImagesOK()\n" +
-                        "{\n" +
-                        "  var failedImages = 0;\n" +
-                        "\n" +
-                        "  for (var i = 0; i < document.images.length; i++) {\n" +
-                        "    if (!isImageOk(document.images[i]))\n" +
-                        "      failedImages += 1;\n" +
-                        "  }\n" +
-                        "  \n" +
-                        "  return (failedImages == 0);\n" +
-                        "}\n");
-                view.loadUrl("javascript:var interval = setInterval(function() { \n" +
-                        "  if (allImagesOK()){\n" +
-                        "    window.clearInterval(interval);\n" +
-                        "    jsListener.setDone();\n" +
-                        "  }" +
-                        "}, 100);");
-
-            }
-
-            @Override
-            public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request) {
-                return super.shouldInterceptRequest(view, request);
-            }
-        });
     }
 
     private void sendPrefetchedData(final Context context, final WebView webView, final Intent intent) {

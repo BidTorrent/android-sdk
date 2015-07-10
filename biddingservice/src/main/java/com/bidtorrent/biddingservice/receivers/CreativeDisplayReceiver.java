@@ -4,12 +4,15 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.view.View;
+import android.webkit.JavascriptInterface;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.Toast;
 
 import com.bidtorrent.bidding.Notificator;
 import com.bidtorrent.biddingservice.Constants;
+
+import java.util.Objects;
 
 public class CreativeDisplayReceiver extends BroadcastReceiver {
     private final int requesterId;
@@ -38,8 +41,6 @@ public class CreativeDisplayReceiver extends BroadcastReceiver {
             public void onPageFinished(final WebView view, String url) {
                 final String creativeFilePath = intent.getStringExtra(Constants.PREFETCHED_CREATIVE_FILE_ARG);
 
-                super.onPageFinished(webView, url);
-
                 if (notificator != null && notificationUrl != null)
                     notificator.notify(notificationUrl);
 
@@ -53,7 +54,7 @@ public class CreativeDisplayReceiver extends BroadcastReceiver {
                             Toast.makeText(context, "Invalid ad, not showing", Toast.LENGTH_LONG).show();
                         }
                     }
-                }, 100);  //FIXME this should be done with a javascript hook like in prefetch
+                }, 100);  //Too sad, no javascript can be injected when displaying files.
             }
         });
 
