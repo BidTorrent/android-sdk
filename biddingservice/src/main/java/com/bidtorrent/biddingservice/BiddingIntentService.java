@@ -134,8 +134,9 @@ public class BiddingIntentService extends LongLivedService {
                 Executors.newCachedThreadPool());
 
         //FIXME: Poll real bidders
-        for (BidderConfiguration config : bidders){
-            this.selector.addBidder(config);
+        for (BidderConfiguration bidderConfig : bidders){
+            if(this.selector.acceptBidder(publisherConfiguration, bidderConfig))
+                this.selector.addBidder(bidderConfig);
         }
 
         this.prefetchedAdsPool = new PrefetchAdsPool(
@@ -161,7 +162,7 @@ public class BiddingIntentService extends LongLivedService {
                             bidders.add(new HttpBidder(
                                     1,
                                     "Kitten",
-                                    config.getBid_ep(),
+                                    config.bid_ep,
                                     new JsonResponseConverter(),
                                     publisherConfiguration.tmax));
                         }
