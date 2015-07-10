@@ -4,8 +4,6 @@ import com.bidtorrent.bidding.messages.BidResponse;
 import com.google.common.base.Function;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
-import com.google.common.util.concurrent.ListeningExecutorService;
-import com.google.common.util.concurrent.MoreExecutors;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -18,7 +16,6 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
-import java.util.concurrent.FutureTask;
 
 import javax.annotation.Nullable;
 
@@ -33,15 +30,15 @@ public class Auctioneer implements IAuctioneer {
 
     @Override
     public Future<AuctionResult> runAuction(final Auction auction) {
-        FutureTask<AuctionResult> resultFuture;
+        Future<AuctionResult> resultFuture;
 
-        resultFuture = new FutureTask<>(new Callable<AuctionResult>() {
+        resultFuture = this.executor.submit(new Callable<AuctionResult>() {
             @Override
             public AuctionResult call() throws ExecutionException, InterruptedException {
                 Collection<ListenableFuture<BidResponse>> responseFutures;
                 ListenableFuture<List<BidResponse>> responses;
 
-                responseFutures = pushResponseFutures(auction.getOpportunity(), auction.getBidders(), executor);
+                responseFutures = pushResponseFutures(auction.getOpportunity(), auction.getBidders());
                 responses = getBidResponses(responseFutures);
 
                 return Futures.lazyTransform(responses, new Function<List<BidResponse>, AuctionResult>() {
@@ -54,8 +51,6 @@ public class Auctioneer implements IAuctioneer {
                 }).get();
             }
         });
-
-        resultFuture.run();
 
         return resultFuture;
     }
@@ -87,8 +82,7 @@ public class Auctioneer implements IAuctioneer {
     }
 
     private static Collection<ListenableFuture<BidResponse>> pushResponseFutures(
-            final BidOpportunity opportunity, final List<IBidder> bidders,
-            final ExecutorService executorService)
+            final BidOpportunity opportunity, final List<IBidder> bidders)
     {
         Collection<ListenableFuture<BidResponse>> responseFutures;
 

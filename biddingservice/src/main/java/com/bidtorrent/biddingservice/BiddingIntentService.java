@@ -113,7 +113,6 @@ public class BiddingIntentService extends LongLivedService {
         });
 
         startPoolMonitors();
-
     }
 
     private void initializeWithConfiguration(PublisherConfiguration result, List<BidderConfiguration> bidders) {

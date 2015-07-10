@@ -128,7 +128,6 @@ public class PooledHttpClient {
     private <U,V>V doPost(String url, U request, Class<V> responseType) throws Exception {
         org.apache.http.HttpResponse response;
         final HttpPost httpPost = new HttpPost(url);
-
         StringEntity postJson = new StringEntity(gson.toJson(request));
         postJson.setContentType("application/json");
         httpPost.setEntity(postJson);
@@ -180,7 +179,12 @@ public class PooledHttpClient {
         SettableFuture<T> future = SettableFuture.create();
         this.pendingTasks.add(new PendingTask(future, callable));
 
-        //runPendingTasks();
+        this.executorService.submit(new Runnable() {
+            @Override
+            public void run() {
+                runPendingTasks();
+            }
+        });
         return future;
     }
 

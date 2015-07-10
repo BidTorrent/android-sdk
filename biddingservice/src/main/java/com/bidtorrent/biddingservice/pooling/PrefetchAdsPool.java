@@ -135,6 +135,7 @@ public class PrefetchAdsPool {
         synchronized (opportunityLocks.get(opp)) {
             for (final Map.Entry<Long, ExpiringItem> waitingBid : this.waitingForBids.get(opp).entrySet()) {
                 ListenableFuture<AuctionResult> future = this.triggerBid.apply(opp);
+
                 if (future == null) continue;
 
                 Futures.addCallback(future, new FutureCallback<AuctionResult>() {
