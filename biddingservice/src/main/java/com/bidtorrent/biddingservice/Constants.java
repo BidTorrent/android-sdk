@@ -15,6 +15,7 @@ public final class Constants {
     // Actions
     public static final String BID_ACTION = "please-bid";
     public static final String FILL_PREFETCH_BUFFER_ACTION = "please-store";
+    public static final String PREFETCH_FAILED_ACTION = "prefetch-failed";
     public static final String NOTIFICATION_URL_ARG = "notif";
     public static final String AUCTION_ID_ARG = "auction-id";
 

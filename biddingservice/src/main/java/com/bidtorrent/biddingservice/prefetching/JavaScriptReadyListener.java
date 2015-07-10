@@ -4,16 +4,16 @@ import android.webkit.JavascriptInterface;
 
 public class JavaScriptReadyListener {
     private Runnable pageSaver;
+    private Runnable failureHandler;
 
-    public JavaScriptReadyListener(Runnable pageSaver) {
+    public JavaScriptReadyListener(Runnable pageSaver, Runnable failureHandler) {
         this.pageSaver = pageSaver;
+        this.failureHandler = failureHandler;
     }
 
     @JavascriptInterface
-    public void notifyLoadingError()
-    {
-        // FIXME: do something meaningful
-        System.out.println("ERROR");
+    public void notifyLoadingError(){
+        this.failureHandler.run();
     }
 
     @JavascriptInterface

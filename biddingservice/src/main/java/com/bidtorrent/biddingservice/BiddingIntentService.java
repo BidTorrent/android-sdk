@@ -194,7 +194,18 @@ public class BiddingIntentService extends LongLivedService {
                 this.bid(intent);
             else if (intent.getAction().equals(Constants.FILL_PREFETCH_BUFFER_ACTION))
                 this.storePrefetchedCreative(intent);
+            else if (intent.getAction().equals(Constants.PREFETCH_FAILED_ACTION))
+                this.prefetchFailed(intent);
         }
+    }
+
+    private void prefetchFailed(Intent intent) {
+        BidOpportunity bidOpportunity;
+        bidOpportunity = getBidOpportunity(intent);
+
+        long auctionId = intent.getLongExtra(Constants.AUCTION_ID_ARG, -1);
+
+        this.prefetchedAdsPool.prefetchFailed(bidOpportunity, auctionId);
     }
 
     private void bid(final Intent intent)

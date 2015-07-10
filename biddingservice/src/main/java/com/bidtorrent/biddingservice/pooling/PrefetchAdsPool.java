@@ -235,4 +235,10 @@ public class PrefetchAdsPool {
                 it.remove();
         }
     }
+
+    public void prefetchFailed(BidOpportunity opp, long auctionId) {
+        synchronized (opportunityLocks.get(opp)){
+            this.waitingForPrefetch.get(opp).remove(auctionId);
+        }
+    }
 }

@@ -6,11 +6,8 @@ import android.content.Intent;
 import android.os.Bundle;
 import android.os.Handler;
 import android.webkit.ValueCallback;
-import android.webkit.WebResourceRequest;
-import android.webkit.WebResourceResponse;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
-import android.webkit.WebViewClient;
 
 import com.bidtorrent.biddingservice.BiddingIntentService;
 import com.bidtorrent.biddingservice.Constants;
@@ -24,14 +21,12 @@ import org.xml.sax.SAXException;
 
 import java.io.File;
 import java.io.IOException;
-import java.io.OutputStreamWriter;
 import java.io.StringReader;
 import java.io.StringWriter;
 
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
-import javax.xml.transform.OutputKeys;
 import javax.xml.transform.Transformer;
 import javax.xml.transform.TransformerConfigurationException;
 import javax.xml.transform.TransformerException;
@@ -54,11 +49,11 @@ public class PrefetchReceiver extends BroadcastReceiver {
                 .append("for (var i = 0; i < document.images.length; i++) {")
                 .append("  if (document.images[i].naturalWidth == 0)")
                 .append("  {")
-                .append("    " + jsListenerName + ".notifyLoadingError();")
+                .append("    ").append(jsListenerName).append(".notifyLoadingError();")
                 .append("    return;")
                 .append("  }")
                 .append("}")
-                .append(jsListenerName + ".notifyLoaded();")
+                .append(jsListenerName).append(".notifyLoaded();")
                 .append("}");
 
         return sb.toString();
@@ -74,11 +69,15 @@ public class PrefetchReceiver extends BroadcastReceiver {
         String creative = extras.getString(Constants.CREATIVE_CODE_ARG);
         final WebView webView = new WebView(context);
         final String instrumentedCreativeCode;
-        final JavaScriptReadyListener jsListener = new JavaScriptReadyListener(new Runnable()
-        {
+        final JavaScriptReadyListener jsListener = new JavaScriptReadyListener(new Runnable() {
             @Override
             public void run() {
                 sendPrefetchedData(context, webView, intent);
+            }
+        }, new Runnable() {
+            @Override
+            public void run() {
+                sendEvent(null, context, intent, Constants.PREFETCH_FAILED_ACTION);
             }
         });
 
@@ -94,18 +93,6 @@ public class PrefetchReceiver extends BroadcastReceiver {
         }
 
         webView.loadData(instrumentedCreativeCode, "text/html", "utf-8");
-
-        webView.setWebViewClient(new WebViewClient() {
-            @Override
-            public void onPageFinished(WebView view, String url) {
-                super.onPageFinished(view, url);
-            }
-
-            @Override
-            public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request) {
-                return super.shouldInterceptRequest(view, request);
-            }
-        });
     }
 
     private void sendPrefetchedData(final Context context, final WebView webView, final Intent intent) {
@@ -126,23 +113,27 @@ public class PrefetchReceiver extends BroadcastReceiver {
                                 false, new ValueCallback<String>() {
                                     @Override
                                     public void onReceiveValue(String value) {
-                                        Intent auctionIntent;
-                                        auctionIntent = new Intent(context, BiddingIntentService.class);
-                                        auctionIntent.setAction(Constants.FILL_PREFETCH_BUFFER_ACTION);
-                                        auctionIntent.putExtra(Constants.PREFETCHED_CREATIVE_FILE_ARG, value)
-                                                .putExtra(Constants.BID_OPPORTUNITY_ARG,
-                                                        intent.getStringExtra(Constants.BID_OPPORTUNITY_ARG))
-                                                .putExtra(Constants.NOTIFICATION_URL_ARG,
-                                                        intent.getStringExtra(Constants.NOTIFICATION_URL_ARG))
-                                                .putExtra(Constants.AUCTION_ID_ARG,
-                                                        intent.getLongExtra(Constants.AUCTION_ID_ARG, -1));
-
-
-                                        context.startService(auctionIntent);
+                                        sendEvent(value, context, intent, Constants.FILL_PREFETCH_BUFFER_ACTION);
                                     }
                                 });
                     }
                 });
+    }
+
+    private static void sendEvent(String value, Context context, Intent intent, String action) {
+        Intent auctionIntent;
+        auctionIntent = new Intent(context, BiddingIntentService.class);
+        auctionIntent.setAction(action);
+        auctionIntent.putExtra(Constants.PREFETCHED_CREATIVE_FILE_ARG, value)
+                .putExtra(Constants.BID_OPPORTUNITY_ARG,
+                        intent.getStringExtra(Constants.BID_OPPORTUNITY_ARG))
+                .putExtra(Constants.NOTIFICATION_URL_ARG,
+                        intent.getStringExtra(Constants.NOTIFICATION_URL_ARG))
+                .putExtra(Constants.AUCTION_ID_ARG,
+                        intent.getLongExtra(Constants.AUCTION_ID_ARG, -1));
+
+
+        context.startService(auctionIntent);
     }
 
     private String injectLoadingTrackingJavascriptCode(String creativeCode) {
