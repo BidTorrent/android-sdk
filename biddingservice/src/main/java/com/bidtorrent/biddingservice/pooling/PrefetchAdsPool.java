@@ -3,7 +3,6 @@ package com.bidtorrent.biddingservice.pooling;
 import com.bidtorrent.bidding.AuctionResult;
 import com.bidtorrent.bidding.BidOpportunity;
 import com.google.common.base.Function;
-import com.google.common.base.Predicate;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
@@ -18,6 +17,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
 public class PrefetchAdsPool {
+    public static final int PREFETCH_EXPIRATION_TIME_LIMIT = 10 * 1000;
     private final Map<BidOpportunity, Map<Long, ExpiringItem>> waitingForBids;
     private final Map<BidOpportunity, Map<Long, PendingPrefetchItem>> waitingForPrefetch;
     private final Map<BidOpportunity, Collection<ReadyAd>> readyAds;
@@ -140,7 +140,9 @@ public class PrefetchAdsPool {
                 Futures.addCallback(future, new FutureCallback<AuctionResult>() {
                     @Override
                     public void onSuccess(AuctionResult result) {
-                        onAuctionResultReady(result, opp, waitingBid.getKey(), waitingBid.getValue().expirationDate);
+                        //Should not take more than 10 secs to prefetch, then discard
+                        Date prefetchExpirationDate = new Date(System.currentTimeMillis() + PREFETCH_EXPIRATION_TIME_LIMIT);
+                        onAuctionResultReady(result, opp, waitingBid.getKey(), prefetchExpirationDate);
                     }
 
                     @Override
