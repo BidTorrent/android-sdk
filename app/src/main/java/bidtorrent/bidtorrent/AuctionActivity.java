@@ -34,8 +34,9 @@ public class AuctionActivity extends ActionBarActivity {
     //FIXME: Can this be the point of entry for our library?
     private BroadcastReceiver createDisplayReceiver()
     {
-        return new CreativeDisplayReceiver(webView, 4242,
-                new Notificator(10000, new PooledHttpClient(10000)));
+        return new CreativeDisplayReceiver(webView, 4242, null );
+                //new Notificator(10000, new PooledHttpClient(10000, true)));
+        //FIXME: notifications moved to service
     }
 
     private BroadcastReceiver createPrefetchReceiver()
@@ -79,6 +80,7 @@ public class AuctionActivity extends ActionBarActivity {
         registerReceiver(this.displayReceiver, new IntentFilter(Constants.READY_TO_DISPLAY_AD_INTENT));
         registerReceiver(this.auctionErrorReceiver, new IntentFilter(Constants.AUCTION_FAILED_INTENT));
         registerReceiver(this.prefetchReceiver, new IntentFilter(Constants.BID_AVAILABLE_INTENT));
+        startService(new Intent(this, BiddingIntentService.class));
     }
 
     @Override

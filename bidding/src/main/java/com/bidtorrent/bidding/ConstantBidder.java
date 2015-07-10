@@ -1,6 +1,9 @@
 package com.bidtorrent.bidding;
 
 import com.bidtorrent.bidding.messages.BidResponse;
+import com.google.common.util.concurrent.Futures;
+import com.google.common.util.concurrent.ListenableFuture;
+import com.google.common.util.concurrent.MoreExecutors;
 
 import java.util.concurrent.Callable;
 
@@ -14,13 +17,8 @@ public class ConstantBidder implements IBidder {
     }
 
     @Override
-    public Callable<BidResponse> bid(BidOpportunity opportunity, IErrorCallback errorCallback) {
-        return new Callable<BidResponse>() {
-            @Override
-            public BidResponse call() throws Exception {
-                return response;
-            }
-        };
+    public ListenableFuture<BidResponse> bid(BidOpportunity opportunity, IErrorCallback errorCallback) {
+        return Futures.immediateFuture(response);
     }
 
     @Override

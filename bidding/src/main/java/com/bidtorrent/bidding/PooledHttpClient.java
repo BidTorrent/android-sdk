@@ -1,7 +1,12 @@
 package com.bidtorrent.bidding;
 
-import com.bidtorrent.bidding.messages.BidResponse;
+import com.google.common.base.Function;
 import com.google.common.io.ByteStreams;
+import com.google.common.util.concurrent.Futures;
+import com.google.common.util.concurrent.ListenableFuture;
+import com.google.common.util.concurrent.ListeningExecutorService;
+import com.google.common.util.concurrent.MoreExecutors;
+import com.google.common.util.concurrent.SettableFuture;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 
@@ -24,14 +29,26 @@ import org.apache.http.params.HttpParams;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.lang.reflect.Type;
+import java.util.Timer;
+import java.util.TimerTask;
+import java.util.concurrent.Callable;
+import java.util.concurrent.Executors;
+import java.util.concurrent.LinkedBlockingQueue;
+
+import javax.annotation.Nullable;
 
 public class PooledHttpClient {
 
+    private final Timer timer;
     private ClientConnectionManager connectionManager;
     private HttpParams httpParameters;
     private Gson gson;
+    private ListeningExecutorService executorService;
+    private final LinkedBlockingQueue<PendingTask> pendingTasks;
+    private boolean isNetworkAvailable;
 
-    public PooledHttpClient(int timeout) {
+    public PooledHttpClient(int timeout, boolean isNetworkAvailable) {
+        this.isNetworkAvailable = isNetworkAvailable;
         this.gson = new GsonBuilder().create();
         this.httpParameters = new BasicHttpParams();
         // Set the default socket timeout (SO_TIMEOUT)
@@ -41,18 +58,27 @@ public class PooledHttpClient {
 
         schemeRegistry.register(new Scheme("http", PlainSocketFactory.getSocketFactory(), 80));
         this.connectionManager = new ThreadSafeClientConnManager(this.httpParameters, schemeRegistry);
+        this.executorService = MoreExecutors.listeningDecorator(Executors.newCachedThreadPool());
+        this.pendingTasks = new LinkedBlockingQueue<>();
+
+        this.timer = new Timer("pooledhttptimer");
+        this.timer.schedule(new TimerTask() {
+            @Override
+            public void run() {
+                runPendingTasks();
+            }
+        }, 0, 500);
     }
 
-    public String doGet(String url){
-        final HttpGet httpGet = new HttpGet(url);
-        try {
-            HttpResponse response = this.getClient().execute(httpGet);
-
-            return parseResponse(response);
-        } catch (IOException e) {
-            e.printStackTrace();
-            return null;
-        }
+    public ListenableFuture<String> doGet(final String url){
+        return this.createFutureTask(new Callable<String>() {
+            @Override
+            public String call() throws Exception {
+                HttpGet httpGet = new HttpGet(url);
+                HttpResponse response = getClient().execute(httpGet);
+                return parseResponse(response);
+            }
+        });
     }
 
     private static String parseResponse(HttpResponse response) throws IOException {
@@ -68,35 +94,44 @@ public class PooledHttpClient {
         return httpClient;
     }
 
-    public <T>T jsonGet(String url, Class<T> type){
-        this.gson = new GsonBuilder().create();
-        String jsonString = doGet(url);
-        if (jsonString == null) return null;
-        return this.gson.fromJson(jsonString, type);
+    public <T> ListenableFuture<T> jsonGet(String url, final Class<T> type){
+        return Futures.transform(this.doGet(url), new Function<String, T>() {
+            @Nullable
+            @Override
+            public T apply(String input) {
+                if (input == null) return null;
+                return gson.fromJson(input, type);
+            }
+        });
     }
 
-    public <T>T jsonGet(String url, Type type){
-        this.gson = new GsonBuilder().create();
-        String jsonString = doGet(url);
-        if (jsonString == null) return null;
-        try {
-            return this.gson.fromJson(jsonString, type);
-        } catch (Exception e){
-            e.printStackTrace();
-            return null;
-        }
+    public <T>ListenableFuture<T> jsonGet(final String url, final Type type) {
+        return Futures.transform(this.doGet(url), new Function<String, T>() {
+            @Nullable
+            @Override
+            public T apply(String input) {
+                if (input == null) return null;
+                return gson.fromJson(input, type);
+            }
+        });
     }
 
-    public <U,V>V jsonPost(String url, U request, Class<V> responseType){
+    public <U,V> ListenableFuture<V> jsonPost(final String url, final U request, final Class<V> responseType){
+        return this.createFutureTask(new Callable<V>() {
+            @Override
+            public V call() throws Exception {
+                return doPost(url, request, responseType);
+            }
+        });
+    }
+
+    private <U,V>V doPost(String url, U request, Class<V> responseType) throws Exception {
+        org.apache.http.HttpResponse response;
         final HttpPost httpPost = new HttpPost(url);
-        try {
-            StringEntity postJson = new StringEntity(gson.toJson(request));
-            postJson.setContentType("application/json");
-            httpPost.setEntity(postJson);
-        } catch (UnsupportedEncodingException e) {
-            //TODO: log here
-        }
 
+        StringEntity postJson = new StringEntity(gson.toJson(request));
+        postJson.setContentType("application/json");
+        httpPost.setEntity(postJson);
 
         //FIXME: To remove, no cookie should be sent inapp
         BasicCookieStore cookieStore = new BasicCookieStore();
@@ -106,20 +141,74 @@ public class PooledHttpClient {
         cookieStore.addCookie(ids);
 
         final DefaultHttpClient httpClient = this.getClient();
-
         httpClient.setCookieStore(cookieStore);
-        org.apache.http.HttpResponse response = null;
-        try {
-            response = httpClient.execute(httpPost);
+        response = httpClient.execute(httpPost);
+        String responseJson = parseResponse(response);
+        if (responseJson == null)
+            return null;
 
-            String responseJson = parseResponse(response);
-            if (responseJson != null)
-                return gson.fromJson(responseJson, responseType);
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-
-        return null;
+        return gson.fromJson(responseJson, responseType);
     }
 
+    private void runPendingTasks(){
+        if (this.isNetworkAvailable) {
+            synchronized (this.pendingTasks){
+                while (!this.pendingTasks.isEmpty()) {
+                    if (isNetworkAvailable) {
+                        final PendingTask pendingTask = this.pendingTasks.poll();
+                        if (pendingTask != null) {
+                            this.executorService.submit(new Runnable() {
+                                @Override
+                                public void run() {
+                                    pendingTask.execute();
+                                }
+                            });
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+
+    public void setNetworkAvailable(boolean isNetworkAvailable){
+        this.isNetworkAvailable = isNetworkAvailable;
+        runPendingTasks();
+    }
+
+    private <T> SettableFuture<T> createFutureTask(Callable<T> callable){
+        SettableFuture<T> future = SettableFuture.create();
+        this.pendingTasks.add(new PendingTask(future, callable));
+
+        //runPendingTasks();
+        return future;
+    }
+
+    private class PendingTask<T> {
+        public static final int INITIAL_RETRIES_COUNT = 3;
+
+        private SettableFuture<T> future;
+        private Callable<T> callable;
+        private int pendingIntents;
+
+        private PendingTask(SettableFuture<T> future, Callable<T> callable) {
+            this.future = future;
+            this.callable = callable;
+            this.pendingIntents = INITIAL_RETRIES_COUNT;
+        }
+
+        public void execute(){
+            try {
+                T t = this.callable.call();
+                this.future.set(t);
+            } catch (Exception e){
+                --this.pendingIntents;
+
+                if (this.pendingIntents == 0)
+                    this.future.setException(e);
+                else
+                    pendingTasks.add(this);
+            }
+        }
+    }
 }

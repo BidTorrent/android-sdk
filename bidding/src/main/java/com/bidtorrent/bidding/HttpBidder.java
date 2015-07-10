@@ -11,6 +11,7 @@ import com.bidtorrent.bidding.messages.Imp;
 import com.bidtorrent.bidding.messages.Publisher;
 import com.bidtorrent.bidding.messages.User;
 import com.google.common.io.ByteStreams;
+import com.google.common.util.concurrent.ListenableFuture;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 
@@ -43,12 +44,12 @@ public class HttpBidder implements IBidder{
     private final String bidUrl;
     private final PooledHttpClient pooledHttpClient;
 
-    public HttpBidder(long id, String name, String bidUrl, IResponseConverter<String> responseConverter, int timeout)
+    public HttpBidder(long id, String name, String bidUrl, IResponseConverter<String> responseConverter, int timeout, PooledHttpClient pooledHttpClient)
     {
         this.id = id;
         this.name = name;
         this.bidUrl = bidUrl;
-        this.pooledHttpClient = new PooledHttpClient(timeout);
+        this.pooledHttpClient = pooledHttpClient;
     }
 
     public static String getLocalIpAddress()
@@ -89,13 +90,8 @@ public class HttpBidder implements IBidder{
     }
 
     @Override
-    public Callable<BidResponse> bid(final BidOpportunity opportunity, IErrorCallback errorCallback) {
-        return new Callable<BidResponse>() {
-            @Override
-            public BidResponse call() {
-                return pooledHttpClient.jsonPost(bidUrl, createBidRequest(opportunity), BidResponse.class);
-            }
-        };
+    public ListenableFuture<BidResponse> bid(final BidOpportunity opportunity, IErrorCallback errorCallback) {
+        return pooledHttpClient.jsonPost(bidUrl, createBidRequest(opportunity), BidResponse.class);
     }
 
     public String getName() {

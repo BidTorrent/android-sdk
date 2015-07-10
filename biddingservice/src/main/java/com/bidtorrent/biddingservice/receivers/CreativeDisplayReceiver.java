@@ -40,7 +40,7 @@ public class CreativeDisplayReceiver extends BroadcastReceiver {
 
                 super.onPageFinished(webView, url);
 
-                if (notificationUrl != null)
+                if (notificator != null && notificationUrl != null)
                     notificator.notify(notificationUrl);
 
                 webView.postDelayed(new Runnable() {
@@ -53,7 +53,7 @@ public class CreativeDisplayReceiver extends BroadcastReceiver {
                             Toast.makeText(context, "Invalid ad, not showing", Toast.LENGTH_LONG).show();
                         }
                     }
-                }, 1000);
+                }, 100);  //FIXME this should be done with a javascript hook like in prefetch
             }
         });
 

@@ -91,17 +91,16 @@ public class Auctioneer implements IAuctioneer {
             final ExecutorService executorService)
     {
         Collection<ListenableFuture<BidResponse>> responseFutures;
-        ListeningExecutorService executor = MoreExecutors.listeningDecorator(executorService);
 
         responseFutures = new ArrayList<>(bidders.size());
         for (final IBidder bidder: bidders) {
-            responseFutures.add(executor.submit(bidder.bid(opportunity,
+            responseFutures.add(bidder.bid(opportunity,
                     new IErrorCallback() {
                         @Override
                         public void processError(Exception e) {
                             e.printStackTrace();
                         }
-                    })));
+                    }));
         }
 
         return responseFutures;

@@ -78,27 +78,20 @@ public class BiddingIntentService extends LongLivedService {
         this.configurationLoaded = false;
         this.gson = new GsonBuilder().create();
         this.executor = MoreExecutors.listeningDecorator(Executors.newCachedThreadPool());
-        this.pooledHttpClient = new PooledHttpClient(1000);
+        this.pooledHttpClient = new PooledHttpClient(1000, isNetworkAvailable());
         this.pendingIntentsTimer = new Timer();
 
-        ListenableFuture<PublisherConfiguration> futurePublisherConfiguration = executor.submit(new Callable<PublisherConfiguration>() {
-            @Override
-            public PublisherConfiguration call() {
-                try {
-                    return pooledHttpClient.jsonGet("http://wwww.bidtorrent.io/api/publishers/1", PublisherConfiguration.class);
-                } catch (Exception e){
-                    return new PublisherConfiguration();
-                }
-            }
-        });
+/*        ListenableFuture<PublisherConfiguration> futurePublisherConfiguration = pooledHttpClient.jsonGet(
+                "http://www.bidtorrent.io/api/publishers/1",
+                PublisherConfiguration.class);
+*/
+        Type listType = new TypeToken<List<BidderConfiguration>>(){}.getType();
+        ListenableFuture<List<BidderConfiguration>> futureBiddersConfiguration = pooledHttpClient.jsonGet(
+                "http://www.bidtorrent.io/api/bidders",
+                listType);
 
-        ListenableFuture<List<BidderConfiguration>> futureBiddersConfiguration = executor.submit(new Callable<List<BidderConfiguration>>() {
-            @Override
-            public List<BidderConfiguration> call() {
-                Type listType = new TypeToken<List<BidderConfiguration>>(){}.getType();
-                return pooledHttpClient.jsonGet("http://wwww.bidtorrent.io/api/bidders", listType);
-            }
-        });
+        //FIXME: go back to online bidders
+        ListenableFuture<PublisherConfiguration> futurePublisherConfiguration = Futures.immediateFuture(new PublisherConfiguration());
 
         ListenableFuture<List<Object>> allConfigurationsFuture = Futures.allAsList(futurePublisherConfiguration, futureBiddersConfiguration);
 
@@ -109,12 +102,7 @@ public class BiddingIntentService extends LongLivedService {
                     throw new RuntimeException("Not all configurations where loaded");
                 }
 
-                if (result.get(0) instanceof PublisherConfiguration) {
-                    initializeWithConfiguration((PublisherConfiguration) result.get(0), (List<BidderConfiguration>) result.get(1));
-                } else {
-                    initializeWithConfiguration((PublisherConfiguration) result.get(1), (List<BidderConfiguration>) result.get(0));
-                }
-
+                initializeWithConfiguration((PublisherConfiguration) result.get(0), (List<BidderConfiguration>) result.get(1));
                 configurationLoaded = true;
             }
 
@@ -123,6 +111,9 @@ public class BiddingIntentService extends LongLivedService {
                 Log.e("BiddingIntentService", "Failed to retrieve configuration", t);
             }
         });
+
+        startPoolMonitors();
+
     }
 
     private void initializeWithConfiguration(PublisherConfiguration result, List<BidderConfiguration> bidders) {
@@ -164,7 +155,8 @@ public class BiddingIntentService extends LongLivedService {
                                     "Kitten",
                                     config.bid_ep,
                                     new JsonResponseConverter(),
-                                    publisherConfiguration.tmax));
+                                    publisherConfiguration.tmax,
+                                    pooledHttpClient));
                         }
 
                         return executor.submit(new Callable<AuctionResult>() {
@@ -183,7 +175,7 @@ public class BiddingIntentService extends LongLivedService {
                     }
                 }, 5 * 60 * 1000, this.isNetworkAvailable());
                 //Timeouts?                150000, 5 * 60 * 1000);
-        startPoolMonitors();
+
     }
 
     @Override
@@ -317,8 +309,6 @@ public class BiddingIntentService extends LongLivedService {
         return intent.getIntExtra(Constants.REQUESTER_ID_ARG, 0);
     }
 
-
-
     private BidOpportunity getBidOpportunity(Intent intent) {
         BidOpportunity bidOpportunity;
 
@@ -332,24 +322,22 @@ public class BiddingIntentService extends LongLivedService {
         this.refreshTimer.schedule(new TimerTask() {
             @Override
             public void run() {
-                prefetchedAdsPool.refreshBuckets();
+                if (prefetchedAdsPool != null)
+                    prefetchedAdsPool.refreshBuckets();
             }
         }, 0, 10000);
 
         registerReceiver(new BroadcastReceiver() {
             @Override
             public void onReceive(Context context, Intent intent) {
-                ConnectivityManager manager = (ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE);
-                NetworkInfo ni = manager.getActiveNetworkInfo();
-
-                if(isNetworkAvailable()) {
-                    prefetchedAdsPool.updateConnectionStatus(true);
-                    //Backonline refresh pools
-                    prefetchedAdsPool.refreshBuckets();
-                } else {
-                    prefetchedAdsPool.updateConnectionStatus(false);
-                    //offline, clean everything
-                    prefetchedAdsPool.discardQueuedItems();
+                boolean networkAvailable = isNetworkAvailable();
+                pooledHttpClient.setNetworkAvailable(networkAvailable);
+                if (prefetchedAdsPool != null){
+                    prefetchedAdsPool.updateConnectionStatus(networkAvailable);
+                    if(networkAvailable)
+                        prefetchedAdsPool.refreshBuckets();
+                    else
+                        prefetchedAdsPool.discardQueuedItems();
                 }
             }
         }, new IntentFilter(ConnectivityManager.CONNECTIVITY_ACTION));
