@@ -1,4 +1,8 @@
 apply plugin: 'java'
+apply plugin: 'com.github.dcendents.android-maven'
+apply plugin: 'com.jfrog.bintray'
+
+version = "0.1"
 
 repositories {
     mavenCentral()
@@ -10,4 +14,81 @@ dependencies {
     compile 'com.google.http-client:google-http-client:1.20.0'
     compile 'com.google.code.gson:gson:2.2.4'
     compile group: 'com.google.guava', name: 'guava', version: '12.0'
+}
+
+def siteUrl = 'https://github.com/bidtorrent/android-sdk'      // Homepage URL of the library
+def gitUrl = 'https://github.com/bidtorrent/android-sdk.git'   // Git repository URL
+group = "io.bidtorrent"                                        // Maven Group ID for the artifact
+
+install {
+    repositories.mavenInstaller {
+        // This generates POM.xml with proper parameters
+        pom {
+            project {
+                packaging 'aar'
+
+                // Add your description here
+                name 'BidTorrent public SDK'
+                url siteUrl
+
+                // Set your license
+                licenses {
+                    license {
+                        name 'The Apache Software License, Version 2.0'
+                        url 'http://www.apache.org/licenses/LICENSE-2.0.txt'
+                    }
+                }
+                developers {
+                    developer {
+                        id 'mwaisgold'
+                        name 'Matias Waisgold'
+                        email 'mwaisgold@gmail.com' //FIXME: Put bidtorrent credentials
+                    }
+                }
+                scm {
+                    connection gitUrl
+                    developerConnection gitUrl
+                    url siteUrl
+
+                }
+            }
+        }
+    }
+}
+
+task javaSourcesJar(type: Jar) {
+    from sourceSets.main.java.srcDirs
+    classifier = 'sources'
+}
+
+task javaJavadoc(type: Javadoc) {
+    source = sourceSets.main.java.srcDirs
+}
+
+task javaJavadocJar(type: Jar, dependsOn: [javadoc]) {
+    classifier = 'javadoc'
+    from javadoc.destinationDir
+    //options.encoding = 'UTF-8'
+}
+artifacts {
+    archives javaJavadocJar
+    archives javaSourcesJar
+}
+
+Properties properties = new Properties()
+properties.load(project.rootProject.file('bintray.properties').newDataInputStream())
+
+bintray {
+    user = properties.getProperty("bintray.user")
+    key = properties.getProperty("bintray.apikey")
+
+    configurations = ['archives']
+    pkg {
+        repo = "maven"
+        name = "java-classes"
+        websiteUrl = siteUrl
+        vcsUrl = gitUrl
+        licenses = ["Apache-2.0"]
+        publish = true
+    }
 }
