@@ -25,7 +25,7 @@ import java.util.concurrent.TimeUnit;
 
 public class TriggerBidFunction implements Function<BidOpportunity, ListenableFuture<AuctionResult>> {
 
-    public static final String DEFAULT_CREATIVE = "<html><head><meta name=\"viewport\" content=\"initial-scale=1, width=300, user-scalable=no\" /></head><body style=\"padding:0px; margin:0px\"><img width=\"100%\" src=\"http://adlb.me/bidder/cache/criteo_I.jpg_320x250.jpeg\"/></body></html>";
+    public static final String DEFAULT_CREATIVE = "<html><head><meta name=\"viewport\" content=\"initial-scale=1, width=300, user-scalable=no\" /></head><body style=\"padding:0px; margin:0px\"><img width=\"100%\" src=\"http://adlb.me/bidder/Ads/kitten_ad-300x250.jpg\"/></body></html>";
     private BidderSelector selector;
     private PublisherConfiguration publisherConfiguration;
     private PooledHttpClient pooledHttpClient;
