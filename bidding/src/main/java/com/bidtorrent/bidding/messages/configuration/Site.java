@@ -2,6 +2,7 @@ package com.bidtorrent.bidding.messages.configuration;
 
 import com.bidtorrent.bidding.messages.Publisher;
 
+import java.util.ArrayList;
 import java.util.List;
 
 public class Site {
@@ -9,5 +10,10 @@ public class Site {
     public String domain;
     public int mobile;
     public PublisherWithCountry publisher;
+
+    public Site(){
+        this.cat = new ArrayList<>();
+        this.publisher = new PublisherWithCountry("", "");
+    }
 
 }

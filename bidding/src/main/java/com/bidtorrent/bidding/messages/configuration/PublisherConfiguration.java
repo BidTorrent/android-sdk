@@ -2,6 +2,7 @@ package com.bidtorrent.bidding.messages.configuration;
 
 import com.bidtorrent.bidding.messages.Imp;
 
+import java.util.ArrayList;
 import java.util.List;
 
 public class PublisherConfiguration {
@@ -12,5 +13,11 @@ public class PublisherConfiguration {
     public List<Imp> imp;
     public int tmax;
 
+    public PublisherConfiguration(){
+        this.site = new Site();
+        this.badv = new ArrayList<>();
+        this.bcat = new ArrayList<>();
+        this.imp = new ArrayList<>();
+    }
     public static int maximumBidders = 5;
 }

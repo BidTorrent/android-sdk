@@ -14,8 +14,12 @@ import com.bidtorrent.bidding.BidOpportunity;
 import com.bidtorrent.bidding.BidderSelector;
 import com.bidtorrent.bidding.Notificator;
 import com.bidtorrent.bidding.PooledHttpClient;
+import com.bidtorrent.bidding.messages.Banner;
+import com.bidtorrent.bidding.messages.Imp;
 import com.bidtorrent.bidding.messages.configuration.BidderConfiguration;
 import com.bidtorrent.bidding.messages.configuration.PublisherConfiguration;
+import com.bidtorrent.bidding.messages.configuration.PublisherWithCountry;
+import com.bidtorrent.bidding.messages.configuration.Site;
 import com.bidtorrent.biddingservice.actions.ActionFactory;
 import com.bidtorrent.biddingservice.functions.TriggerBidFunction;
 import com.bidtorrent.biddingservice.pooling.MyThreeParametersFunction;
@@ -33,9 +37,14 @@ import com.google.common.util.concurrent.MoreExecutors;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 
+import java.io.IOException;
+import java.io.InputStream;
 import java.lang.reflect.Type;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Properties;
 import java.util.Queue;
 import java.util.Timer;
 import java.util.TimerTask;
@@ -47,6 +56,7 @@ public class BiddingIntentService extends LongLivedService {
     private Auctioneer auctioneer;
     private PrefetchAdsPool prefetchedAdsPool;
     private BidderSelector selector;
+    private PublisherConfiguration basePublisherConfiguration;
     private PublisherConfiguration publisherConfiguration;
     private Timer refreshTimer;
     private PooledHttpClient pooledHttpClient;
@@ -73,6 +83,7 @@ public class BiddingIntentService extends LongLivedService {
         this.pooledHttpClient = new PooledHttpClient(1000, isNetworkAvailable());
         this.notificator = new Notificator(this.pooledHttpClient);
         this.pendingIntentsTimer = new Timer();
+        this.basePublisherConfiguration = this.loadBaseConfiguration();
 
 /*        ListenableFuture<PublisherConfiguration> futurePublisherConfiguration = pooledHttpClient.jsonGet(
                 "http://www.bidtorrent.io/api/publishers/1",
@@ -108,8 +119,54 @@ public class BiddingIntentService extends LongLivedService {
         startPoolMonitors();
     }
 
+    private PublisherConfiguration loadBaseConfiguration() {
+        PublisherConfiguration configuration = new PublisherConfiguration();
+        try {
+            InputStream stream = this.getAssets().open("bidtorrent.properties");
+            Properties properties = new Properties();
+            properties.load(stream);
+
+            //FIXME: Shouldn't we use app?
+            configuration.site = new Site();
+            configuration.site.cat = Arrays.asList(properties.getProperty("app.cat").split(","));
+            configuration.site.domain = properties.getProperty("app.domain");
+            configuration.site.publisher = new PublisherWithCountry(
+                    properties.getProperty("app.publisher.id"),
+                    properties.getProperty("app.publisher.name"));
+            configuration.site.publisher.country = properties.getProperty("app.publisher.country");
+            configuration.badv = Arrays.asList(properties.getProperty("badv").split(","));
+            configuration.bcat = Arrays.asList(properties.getProperty("bcat").split(","));
+            configuration.cur = properties.getProperty("cur");
+            configuration.imp = new ArrayList<>(1);
+            configuration.imp.add(new Imp(
+                    new Banner(
+                            readBType(properties),
+                            Integer.parseInt(properties.getProperty("imp.banner.h", "-1")),
+                            0,
+                            Integer.parseInt(properties.getProperty("imp.banner.w", "-1"))),
+                    Float.parseFloat(properties.getProperty("1.75","-1")),
+                    "",
+                    Integer.parseInt(properties.getProperty("imp.instl", "-1")),
+                    Boolean.parseBoolean(properties.getProperty("imp.secure", "false"))));
+            configuration.tmax = Integer.parseInt(properties.getProperty("tmax", "-1"));
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        return configuration;
+    }
+
+    private static List<Integer> readBType(Properties properties) {
+        List<Integer> list = new ArrayList<>();
+        for (String s : properties.getProperty("imp.banner.btype").split(",")){
+            list.add(Integer.parseInt(s));
+        }
+        return list;
+    }
+
     private void initializeWithConfiguration(PublisherConfiguration result, List<BidderConfiguration> bidders) {
-        this.publisherConfiguration = result;
+        this.publisherConfiguration = mergeConfigurations(result, basePublisherConfiguration);
         this.selector = new BidderSelector(this.publisherConfiguration);
 
         this.auctioneer = new Auctioneer(
@@ -144,6 +201,34 @@ public class BiddingIntentService extends LongLivedService {
                 }, 5 * 60 * 1000, this.isNetworkAvailable());
                 //Timeouts?                150000, 5 * 60 * 1000);
 
+    }
+
+    private static PublisherConfiguration mergeConfigurations(PublisherConfiguration result, PublisherConfiguration basePublisherConfiguration) {
+        PublisherConfiguration finalConfiguration = result;
+
+        finalConfiguration.site.cat.addAll(basePublisherConfiguration.site.cat);
+        if (!basePublisherConfiguration.site.domain.equals("")) finalConfiguration.site.domain = basePublisherConfiguration.site.domain;
+        if (!basePublisherConfiguration.site.publisher.id.equals("")) finalConfiguration.site.publisher.id = basePublisherConfiguration.site.publisher.id;
+        if (!basePublisherConfiguration.site.publisher.name.equals("")) finalConfiguration.site.publisher.name = basePublisherConfiguration.site.publisher.name;
+        if (!basePublisherConfiguration.site.publisher.country.equals("")) finalConfiguration.site.publisher.country = basePublisherConfiguration.site.publisher.country;
+
+        finalConfiguration.badv.addAll(basePublisherConfiguration.badv);
+        finalConfiguration.bcat.addAll(basePublisherConfiguration.bcat);
+        if (!basePublisherConfiguration.cur.equals("")) finalConfiguration.cur = basePublisherConfiguration.cur;
+
+        if (finalConfiguration.imp.isEmpty()){
+            finalConfiguration.imp.addAll(basePublisherConfiguration.imp);
+        } else {
+            finalConfiguration.imp.get(0).banner.btype.addAll(basePublisherConfiguration.imp.get(0).banner.btype);
+            if (basePublisherConfiguration.imp.get(0).banner.h != -1) finalConfiguration.imp.get(0).banner.h = basePublisherConfiguration.imp.get(0).banner.h;
+            if (basePublisherConfiguration.imp.get(0).banner.w != -1) finalConfiguration.imp.get(0).banner.w = basePublisherConfiguration.imp.get(0).banner.w;
+            if (basePublisherConfiguration.imp.get(0).instl != -1) finalConfiguration.imp.get(0).instl = basePublisherConfiguration.imp.get(0).instl;
+            if (basePublisherConfiguration.imp.get(0).secure) finalConfiguration.imp.get(0).secure = true;
+        }
+
+        if (basePublisherConfiguration.tmax != -1) finalConfiguration.tmax = basePublisherConfiguration.tmax;
+
+        return finalConfiguration;
     }
 
     @Override

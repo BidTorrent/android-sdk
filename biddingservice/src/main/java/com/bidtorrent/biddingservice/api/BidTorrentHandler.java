@@ -13,11 +13,18 @@ import android.widget.TextView;
 
 import com.bidtorrent.bidding.BidOpportunity;
 import com.bidtorrent.bidding.Size;
+import com.bidtorrent.bidding.messages.BidRequest;
 import com.bidtorrent.biddingservice.BiddingIntentService;
 import com.bidtorrent.biddingservice.Constants;
 import com.bidtorrent.biddingservice.receivers.CreativeDisplayReceiver;
 import com.bidtorrent.biddingservice.receivers.PrefetchReceiver;
+import com.google.api.client.json.Json;
+import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+
+import java.io.FileReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
 
 public class BidTorrentHandler {
 
