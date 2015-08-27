@@ -85,17 +85,14 @@ public class BiddingIntentService extends LongLivedService {
         this.pendingIntentsTimer = new Timer();
         this.basePublisherConfiguration = this.loadBaseConfiguration();
 
-/*        ListenableFuture<PublisherConfiguration> futurePublisherConfiguration = pooledHttpClient.jsonGet(
-                "http://www.bidtorrent.io/api/publishers/1",
+        ListenableFuture<PublisherConfiguration> futurePublisherConfiguration = pooledHttpClient.jsonGet(
+                "http://www.bidtorrent.io/api/publishers/" + basePublisherConfiguration.site.publisher.id,
                 PublisherConfiguration.class);
-*/
+
         Type listType = new TypeToken<List<BidderConfiguration>>(){}.getType();
         ListenableFuture<List<BidderConfiguration>> futureBiddersConfiguration = pooledHttpClient.jsonGet(
                 "http://www.bidtorrent.io/api/bidders",
                 listType);
-
-        //FIXME: go back to online bidders
-        ListenableFuture<PublisherConfiguration> futurePublisherConfiguration = Futures.immediateFuture(new PublisherConfiguration());
 
         ListenableFuture<List<Object>> allConfigurationsFuture = Futures.allAsList(futurePublisherConfiguration, futureBiddersConfiguration);
 
@@ -153,6 +150,9 @@ public class BiddingIntentService extends LongLivedService {
         } catch (IOException e) {
             e.printStackTrace();
         }
+
+        if (configuration.site.publisher.id.equals(""))
+            throw new IllegalArgumentException("Publisher Id is mandatory for configuration");
 
         return configuration;
     }
@@ -219,7 +219,10 @@ public class BiddingIntentService extends LongLivedService {
         if (finalConfiguration.imp.isEmpty()){
             finalConfiguration.imp.addAll(basePublisherConfiguration.imp);
         } else {
-            finalConfiguration.imp.get(0).banner.btype.addAll(basePublisherConfiguration.imp.get(0).banner.btype);
+            if (finalConfiguration.imp.get(0).banner.btype == null)
+                finalConfiguration.imp.get(0).banner.btype = basePublisherConfiguration.imp.get(0).banner.btype;
+            else
+                finalConfiguration.imp.get(0).banner.btype.addAll(basePublisherConfiguration.imp.get(0).banner.btype);
             if (basePublisherConfiguration.imp.get(0).banner.h != -1) finalConfiguration.imp.get(0).banner.h = basePublisherConfiguration.imp.get(0).banner.h;
             if (basePublisherConfiguration.imp.get(0).banner.w != -1) finalConfiguration.imp.get(0).banner.w = basePublisherConfiguration.imp.get(0).banner.w;
             if (basePublisherConfiguration.imp.get(0).instl != -1) finalConfiguration.imp.get(0).instl = basePublisherConfiguration.imp.get(0).instl;
