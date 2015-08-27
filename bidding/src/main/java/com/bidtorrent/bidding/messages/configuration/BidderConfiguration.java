@@ -1,9 +1,8 @@
 package com.bidtorrent.bidding.messages.configuration;
 
-import java.util.Random;
-import java.util.concurrent.ThreadLocalRandom;
+import java.io.Serializable;
 
-public class BidderConfiguration {
+public class BidderConfiguration implements Serializable {
     public Long id;
     public String bid_ep;
     public String name;

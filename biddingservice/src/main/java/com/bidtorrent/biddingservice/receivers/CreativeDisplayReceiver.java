@@ -3,28 +3,20 @@ package com.bidtorrent.biddingservice.receivers;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
-import android.database.DataSetObserver;
 import android.view.View;
 import android.view.ViewGroup;
-import android.webkit.JavascriptInterface;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
-import android.widget.ArrayAdapter;
-import android.widget.ListAdapter;
 import android.widget.ListView;
 import android.widget.Toast;
 
 import com.bidtorrent.bidding.AuctionResult;
-import com.bidtorrent.bidding.Notificator;
-import com.bidtorrent.bidding.messages.BidResponse;
 import com.bidtorrent.biddingservice.BiddingIntentService;
 import com.bidtorrent.biddingservice.Constants;
 import com.bidtorrent.biddingservice.R;
 import com.bidtorrent.biddingservice.debug.ListViewAdapter;
 
-import java.io.Serializable;
 import java.util.ArrayList;
-import java.util.Objects;
 
 public class CreativeDisplayReceiver extends BroadcastReceiver {
     private ViewGroup debugView;
@@ -78,7 +70,7 @@ public class CreativeDisplayReceiver extends BroadcastReceiver {
         if (this.debugView == null) return;
 
         ListView listView = new ListView(context);
-        listView.setAdapter(new ListViewAdapter(context, R.layout.debug, new ArrayList<BidResponse>(result.getResponses())));
+        listView.setAdapter(new ListViewAdapter(context, R.layout.debug, new ArrayList<>(result.getResponses())));
         debugView.addView(listView);
     }
 

@@ -1,48 +1,40 @@
 package com.bidtorrent.bidding;
 
-import com.bidtorrent.bidding.messages.BidResponse;
+import com.bidtorrent.bidding.messages.ContextualizedBidResponse;
 
 import java.io.Serializable;
 import java.util.Collection;
 
 public class AuctionResult implements Serializable {
-    private IBidder winningBidder;
-    private final BidResponse winningBid;
-    private final float winningPrice;
-    private long runnerUp;
-    private Collection<BidResponse> responses;
+    private final ContextualizedBidResponse winningBid;
+    private final ContextualizedBidResponse runnerUp;
+    private Collection<ContextualizedBidResponse> responses;
+    private float winningPrice;
 
     public AuctionResult(
-            BidResponse winningBid,
-            float winningPrice,
-            IBidder winningBidder,
-            Collection<BidResponse> responses,
-            long runnerUp)
-    {
+            ContextualizedBidResponse winningBid,
+            Collection<ContextualizedBidResponse> responses,
+            ContextualizedBidResponse runnerUp,
+            float winningPrice){
         this.winningBid = winningBid;
-        this.winningPrice = winningPrice;
-        this.winningBidder = winningBidder;
         this.responses = responses;
         this.runnerUp = runnerUp;
+        this.winningPrice = winningPrice;
     }
 
-    public BidResponse getWinningBid() {
+    public AuctionResult() {
+        this(null,null,null, 0f);
+    }
+
+    public ContextualizedBidResponse getWinningBid() {
         return winningBid;
     }
 
-    public float getWinningPrice() {
-        return winningPrice;
-    }
-
-    public Collection<BidResponse> getResponses() {
+    public Collection<ContextualizedBidResponse> getResponses() {
         return responses;
     }
 
-    public IBidder getWinningBidder() {
-        return winningBidder;
-    }
-
-    public long getRunnerUp() {
+    public ContextualizedBidResponse getRunnerUp() {
         return runnerUp;
     }
 }
