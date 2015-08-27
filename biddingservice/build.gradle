@@ -31,8 +31,8 @@ group = "io.bidtorrent"                                        // Maven Group ID
 dependencies {
     compile fileTree(dir: 'libs', include: ['*.jar'])
     compile 'com.android.support:appcompat-v7:22.0.0'
-    //compile project(':bidding')
-    compile 'io.bidtorrent:bidding:0.2'
+    compile project(':bidding')
+    //compile 'io.bidtorrent:bidding:0.2'
 }
 
 install {
