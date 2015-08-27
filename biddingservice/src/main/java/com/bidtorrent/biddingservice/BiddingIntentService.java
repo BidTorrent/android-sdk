@@ -14,12 +14,13 @@ import com.bidtorrent.bidding.BidOpportunity;
 import com.bidtorrent.bidding.BidderSelector;
 import com.bidtorrent.bidding.Notificator;
 import com.bidtorrent.bidding.PooledHttpClient;
+import com.bidtorrent.bidding.messages.App;
 import com.bidtorrent.bidding.messages.Banner;
+import com.bidtorrent.bidding.messages.Ext;
 import com.bidtorrent.bidding.messages.Imp;
+import com.bidtorrent.bidding.messages.Publisher;
 import com.bidtorrent.bidding.messages.configuration.BidderConfiguration;
 import com.bidtorrent.bidding.messages.configuration.PublisherConfiguration;
-import com.bidtorrent.bidding.messages.configuration.PublisherWithCountry;
-import com.bidtorrent.bidding.messages.configuration.Site;
 import com.bidtorrent.biddingservice.actions.ActionFactory;
 import com.bidtorrent.biddingservice.functions.TriggerBidFunction;
 import com.bidtorrent.biddingservice.pooling.MyThreeParametersFunction;
@@ -86,7 +87,7 @@ public class BiddingIntentService extends LongLivedService {
         this.basePublisherConfiguration = this.loadBaseConfiguration();
 
         ListenableFuture<PublisherConfiguration> futurePublisherConfiguration = pooledHttpClient.jsonGet(
-                "http://www.bidtorrent.io/api/publishers/" + basePublisherConfiguration.site.publisher.id,
+                "http://www.bidtorrent.io/api/publishers/" + basePublisherConfiguration.app.publisher.id,
                 PublisherConfiguration.class);
 
         Type listType = new TypeToken<List<BidderConfiguration>>(){}.getType();
@@ -116,42 +117,48 @@ public class BiddingIntentService extends LongLivedService {
         startPoolMonitors();
     }
 
+    private Properties loadProperties() throws IOException {
+        InputStream stream = this.getAssets().open("bidtorrent.properties");
+        Properties properties = new Properties();
+        properties.load(stream);
+        return properties;
+    }
+
     private PublisherConfiguration loadBaseConfiguration() {
         PublisherConfiguration configuration = new PublisherConfiguration();
-        try {
-            InputStream stream = this.getAssets().open("bidtorrent.properties");
-            Properties properties = new Properties();
-            properties.load(stream);
 
-            //FIXME: Shouldn't we use app?
-            configuration.site = new Site();
-            configuration.site.cat = Arrays.asList(properties.getProperty("app.cat").split(","));
-            configuration.site.domain = properties.getProperty("app.domain");
-            configuration.site.publisher = new PublisherWithCountry(
-                    properties.getProperty("app.publisher.id"),
-                    properties.getProperty("app.publisher.name"));
-            configuration.site.publisher.country = properties.getProperty("app.publisher.country");
+        try {
+            Properties properties = this.loadProperties();
+
+            configuration.app = new App();
+            configuration.app.cat = Arrays.asList(properties.getProperty("app.cat").split(","));
+            configuration.app.domain = properties.getProperty("app.domain");
+            configuration.app.publisher = new Publisher(properties.getProperty("app.publisher.id"), properties.getProperty("app.publisher.name"));
+
             configuration.badv = Arrays.asList(properties.getProperty("badv").split(","));
             configuration.bcat = Arrays.asList(properties.getProperty("bcat").split(","));
             configuration.cur = properties.getProperty("cur");
-            configuration.imp = new ArrayList<>(1);
-            configuration.imp.add(new Imp(
-                    new Banner(
-                            readBType(properties),
-                            Integer.parseInt(properties.getProperty("imp.banner.h", "-1")),
-                            0,
-                            Integer.parseInt(properties.getProperty("imp.banner.w", "-1"))),
-                    Float.parseFloat(properties.getProperty("1.75","-1")),
-                    "",
-                    Integer.parseInt(properties.getProperty("imp.instl", "-1")),
-                    Boolean.parseBoolean(properties.getProperty("imp.secure", "false"))));
+            configuration.imp = Arrays.asList(
+                    new Imp(
+                            new Banner(
+                                    readBType(properties),
+                                    Integer.parseInt(properties.getProperty("imp.banner.h", "-1")),
+                                    0,
+                                    Integer.parseInt(properties.getProperty("imp.banner.w", "-1"))),
+                            Float.parseFloat(properties.getProperty("1.75", "-1")),
+                            "",
+                            Integer.parseInt(properties.getProperty("imp.instl", "-1")),
+                            Boolean.parseBoolean(properties.getProperty("imp.secure", "false"))));
+
             configuration.tmax = Integer.parseInt(properties.getProperty("tmax", "-1"));
+            configuration.ext = new Ext();
+            configuration.ext.btid = Integer.parseInt(properties.getProperty("ext.btid", "-1"));
 
         } catch (IOException e) {
             e.printStackTrace();
         }
 
-        if (configuration.site.publisher.id.equals(""))
+        if (configuration.app.publisher.id.equals(""))
             throw new IllegalArgumentException("Publisher Id is mandatory for configuration");
 
         return configuration;
@@ -206,11 +213,10 @@ public class BiddingIntentService extends LongLivedService {
     private static PublisherConfiguration mergeConfigurations(PublisherConfiguration result, PublisherConfiguration basePublisherConfiguration) {
         PublisherConfiguration finalConfiguration = result;
 
-        finalConfiguration.site.cat.addAll(basePublisherConfiguration.site.cat);
-        if (!basePublisherConfiguration.site.domain.equals("")) finalConfiguration.site.domain = basePublisherConfiguration.site.domain;
-        if (!basePublisherConfiguration.site.publisher.id.equals("")) finalConfiguration.site.publisher.id = basePublisherConfiguration.site.publisher.id;
-        if (!basePublisherConfiguration.site.publisher.name.equals("")) finalConfiguration.site.publisher.name = basePublisherConfiguration.site.publisher.name;
-        if (!basePublisherConfiguration.site.publisher.country.equals("")) finalConfiguration.site.publisher.country = basePublisherConfiguration.site.publisher.country;
+        finalConfiguration.app.cat.addAll(basePublisherConfiguration.app.cat);
+        if (!basePublisherConfiguration.app.domain.equals("")) finalConfiguration.app.domain = basePublisherConfiguration.app.domain;
+        if (!basePublisherConfiguration.app.publisher.id.equals("")) finalConfiguration.app.publisher.id = basePublisherConfiguration.app.publisher.id;
+        if (!basePublisherConfiguration.app.publisher.name.equals("")) finalConfiguration.app.publisher.name = basePublisherConfiguration.app.publisher.name;
 
         finalConfiguration.badv.addAll(basePublisherConfiguration.badv);
         finalConfiguration.bcat.addAll(basePublisherConfiguration.bcat);

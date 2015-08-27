@@ -7,4 +7,9 @@ public class Geo {
     public Geo(String country) {
         this.country = country;
     }
+
+    public static String getCurrentCountry()
+    {
+        return "USA";
+    }
 }

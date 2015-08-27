@@ -79,7 +79,7 @@ public class HttpBidder implements IBidder {
     private static BidRequest createBidRequest(BidOpportunity bidOpportunity){
         return new BidRequest(
                 new User("MyID", "MyID"),
-                new App("www.bbc.com",1,new Publisher("123","Yahoo")),
+                new App("www.bbc.com", new Publisher("123","Yahoo")),
                 "EUR",
                 new Device(new Geo("USA"), "91.199.242.236", 1, "en", "Apple", "iPhone","iOS","Mozilla/5.0 (iPhone; CPU iPhone OS 6_1_3 like Mac OS X) AppleWebKit/536.26 (KHTML, like Gecko) Mobile/10B329"),
                 "39f95888-0450-4afc-9b8b-eabd81a69ddc",

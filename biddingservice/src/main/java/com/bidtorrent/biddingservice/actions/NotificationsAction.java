@@ -47,7 +47,7 @@ public class NotificationsAction implements ServiceAction{
         }
 
         builder.append(String.format("f=%.2f&", publisherConfiguration.imp.get(0).bidfloor));
-        builder.append(String.format("p=%s&", publisherConfiguration.site.publisher.id));
+        builder.append(String.format("p=%s&", publisherConfiguration.app.publisher.id));
         builder.append(String.format("a=%s", a));
 
         return builder.toString();

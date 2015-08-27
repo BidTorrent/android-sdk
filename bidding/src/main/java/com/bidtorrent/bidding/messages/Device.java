@@ -21,4 +21,17 @@ public class Device {
         this.os = os;
         this.ua = ua;
     }
+
+    static Device GetCurrentDevice()
+    {
+        return new Device(
+            new Geo("USA"),
+            "91.199.242.236",
+            1,
+            "en",
+            "Apple",
+            "iPhone",
+            "iOS",
+            "Mozilla/5.0 (iPhone; CPU iPhone OS 6_1_3 like Mac OS X) AppleWebKit/536.26 (KHTML, like Gecko) Mobile/10B329");
+    }
 }

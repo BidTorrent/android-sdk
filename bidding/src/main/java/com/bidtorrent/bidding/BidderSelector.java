@@ -1,5 +1,7 @@
 package com.bidtorrent.bidding;
 
+import com.bidtorrent.bidding.messages.Geo;
+
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -38,7 +40,7 @@ public class BidderSelector
         if(bidderConfiguration.filters == null)
             return true;
 
-        country = publisherConfiguration.site.publisher.country;// TODO replace with app.publisher.country
+        country = Geo.getCurrentCountry();
 
         if (bidderConfiguration.filters.pub_ctry != null &&
             bidderConfiguration.filters.pub_ctry.size() != 0 &&
@@ -76,7 +78,7 @@ public class BidderSelector
             }
         }
 
-        cat_bl = publisherConfiguration.site.cat; // TODO replace with app.cat
+        cat_bl = publisherConfiguration.app.cat;
 
         if (bidderConfiguration.filters.cat_bl != null &&
             cat_bl != null && cat_bl.size() > 0) {
