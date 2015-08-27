@@ -28,12 +28,12 @@ import java.io.InputStreamReader;
 
 public class BidTorrentHandler {
 
+    private WebView adView;
     private Context context;
     private ViewGroup debugLayout;
     private BroadcastReceiver auctionErrorReceiver;
     private BroadcastReceiver displayReceiver;
     private BroadcastReceiver prefetchReceiver;
-    private WebView view;
 
     public static BidTorrentHandler createHandler(Context context, WebView adView, ViewGroup debugLayout){
         return new BidTorrentHandler(context, adView, debugLayout);
@@ -47,7 +47,7 @@ public class BidTorrentHandler {
         this.displayReceiver = new CreativeDisplayReceiver(adView, this.debugLayout);
         this.prefetchReceiver = new PrefetchReceiver(new Handler(context.getMainLooper()));
 
-        this.view = adView;
+        this.adView = adView;
 
         this.postCreate();
     }
@@ -67,17 +67,20 @@ public class BidTorrentHandler {
     }
 
     public void runAuction(){
+        Size adSize;
         Intent auctionIntent;
         BidOpportunity opp;
 
-        opp = new BidOpportunity(new Size(300, 250), "bidtorrent.dummy.app");
+        adSize = new Size(this.adView.getWidth(), this.adView.getWidth());
+
+        opp = new BidOpportunity(adSize, "bidtorrent.dummy.app");
 
         this.debugLayout.removeAllViews();
 
         auctionIntent = new Intent(this.context, BiddingIntentService.class)
-                .setAction(Constants.BID_ACTION)
-                .putExtra(Constants.REQUESTER_ID_ARG, this.view.getId())
-                .putExtra(Constants.BID_OPPORTUNITY_ARG, new GsonBuilder().create().toJson(opp));
+            .setAction(Constants.BID_ACTION)
+            .putExtra(Constants.REQUESTER_ID_ARG, this.adView.getId())
+            .putExtra(Constants.BID_OPPORTUNITY_ARG, new GsonBuilder().create().toJson(opp));
 
         this.context.startService(auctionIntent);
     }
