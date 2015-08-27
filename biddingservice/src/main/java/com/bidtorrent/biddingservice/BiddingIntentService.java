@@ -22,6 +22,7 @@ import com.bidtorrent.bidding.messages.Publisher;
 import com.bidtorrent.bidding.messages.configuration.BidderConfiguration;
 import com.bidtorrent.bidding.messages.configuration.PublisherConfiguration;
 import com.bidtorrent.biddingservice.actions.ActionFactory;
+import com.bidtorrent.biddingservice.configuration.PublisherConfigurationLoader;
 import com.bidtorrent.biddingservice.functions.TriggerBidFunction;
 import com.bidtorrent.biddingservice.pooling.MyThreeParametersFunction;
 import com.bidtorrent.biddingservice.pooling.MyTwoParametersFunction;
@@ -57,7 +58,6 @@ public class BiddingIntentService extends LongLivedService {
     private Auctioneer auctioneer;
     private PrefetchAdsPool prefetchedAdsPool;
     private BidderSelector selector;
-    private PublisherConfiguration basePublisherConfiguration;
     private PublisherConfiguration publisherConfiguration;
     private Timer refreshTimer;
     private PooledHttpClient pooledHttpClient;
@@ -84,18 +84,16 @@ public class BiddingIntentService extends LongLivedService {
         this.pooledHttpClient = new PooledHttpClient(1000, isNetworkAvailable());
         this.notificator = new Notificator(this.pooledHttpClient);
         this.pendingIntentsTimer = new Timer();
-        this.basePublisherConfiguration = this.loadBaseConfiguration();
 
-        ListenableFuture<PublisherConfiguration> futurePublisherConfiguration = pooledHttpClient.jsonGet(
-                "http://www.bidtorrent.io/api/publishers/" + basePublisherConfiguration.app.publisher.id,
-                PublisherConfiguration.class);
+        ListenableFuture<PublisherConfiguration> publisherConfiguration = this.loadPublisherConfiguration();
 
         Type listType = new TypeToken<List<BidderConfiguration>>(){}.getType();
+        
         ListenableFuture<List<BidderConfiguration>> futureBiddersConfiguration = pooledHttpClient.jsonGet(
                 "http://www.bidtorrent.io/api/bidders",
                 listType);
 
-        ListenableFuture<List<Object>> allConfigurationsFuture = Futures.allAsList(futurePublisherConfiguration, futureBiddersConfiguration);
+        ListenableFuture<List<Object>> allConfigurationsFuture = Futures.allAsList(publisherConfiguration, futureBiddersConfiguration);
 
         Futures.addCallback(allConfigurationsFuture, new FutureCallback<List<Object>>() {
             @Override
@@ -115,6 +113,18 @@ public class BiddingIntentService extends LongLivedService {
         });
 
         startPoolMonitors();
+    }
+
+    private ListenableFuture<PublisherConfiguration> loadPublisherConfiguration()
+    {
+        PublisherConfigurationLoader publisherConfigurationLoader =
+                new PublisherConfigurationLoader(
+                        "bidtorrent.properties",
+                        this.getAssets(),
+                        this.pooledHttpClient,
+                        "http://www.bidtorrent.io/api/publishers/");//TODO in configuration
+
+        return publisherConfigurationLoader.loadConfiguration();
     }
 
     private Properties loadProperties() throws IOException {
@@ -173,7 +183,7 @@ public class BiddingIntentService extends LongLivedService {
     }
 
     private void initializeWithConfiguration(PublisherConfiguration result, List<BidderConfiguration> bidders) {
-        this.publisherConfiguration = mergeConfigurations(result, basePublisherConfiguration);
+        this.publisherConfiguration = result;
         this.selector = new BidderSelector(this.publisherConfiguration);
 
         this.auctioneer = new Auctioneer(
@@ -208,36 +218,6 @@ public class BiddingIntentService extends LongLivedService {
                 }, 5 * 60 * 1000, this.isNetworkAvailable());
                 //Timeouts?                150000, 5 * 60 * 1000);
 
-    }
-
-    private static PublisherConfiguration mergeConfigurations(PublisherConfiguration result, PublisherConfiguration basePublisherConfiguration) {
-        PublisherConfiguration finalConfiguration = result;
-
-        finalConfiguration.app.cat.addAll(basePublisherConfiguration.app.cat);
-        if (!basePublisherConfiguration.app.domain.equals("")) finalConfiguration.app.domain = basePublisherConfiguration.app.domain;
-        if (!basePublisherConfiguration.app.publisher.id.equals("")) finalConfiguration.app.publisher.id = basePublisherConfiguration.app.publisher.id;
-        if (!basePublisherConfiguration.app.publisher.name.equals("")) finalConfiguration.app.publisher.name = basePublisherConfiguration.app.publisher.name;
-
-        finalConfiguration.badv.addAll(basePublisherConfiguration.badv);
-        finalConfiguration.bcat.addAll(basePublisherConfiguration.bcat);
-        if (!basePublisherConfiguration.cur.equals("")) finalConfiguration.cur = basePublisherConfiguration.cur;
-
-        if (finalConfiguration.imp.isEmpty()){
-            finalConfiguration.imp.addAll(basePublisherConfiguration.imp);
-        } else {
-            if (finalConfiguration.imp.get(0).banner.btype == null)
-                finalConfiguration.imp.get(0).banner.btype = basePublisherConfiguration.imp.get(0).banner.btype;
-            else
-                finalConfiguration.imp.get(0).banner.btype.addAll(basePublisherConfiguration.imp.get(0).banner.btype);
-            if (basePublisherConfiguration.imp.get(0).banner.h != -1) finalConfiguration.imp.get(0).banner.h = basePublisherConfiguration.imp.get(0).banner.h;
-            if (basePublisherConfiguration.imp.get(0).banner.w != -1) finalConfiguration.imp.get(0).banner.w = basePublisherConfiguration.imp.get(0).banner.w;
-            if (basePublisherConfiguration.imp.get(0).instl != -1) finalConfiguration.imp.get(0).instl = basePublisherConfiguration.imp.get(0).instl;
-            if (basePublisherConfiguration.imp.get(0).secure) finalConfiguration.imp.get(0).secure = true;
-        }
-
-        if (basePublisherConfiguration.tmax != -1) finalConfiguration.tmax = basePublisherConfiguration.tmax;
-
-        return finalConfiguration;
     }
 
     @Override
