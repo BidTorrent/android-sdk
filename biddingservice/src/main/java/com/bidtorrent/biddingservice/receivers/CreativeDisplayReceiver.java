@@ -27,17 +27,15 @@ import java.util.ArrayList;
 import java.util.Objects;
 
 public class CreativeDisplayReceiver extends BroadcastReceiver {
-    private final int requesterId;
     private ViewGroup debugView;
     private WebView webView;
 
-    public CreativeDisplayReceiver(WebView webView, int requesterId) {
-        this(webView, requesterId, null);
+    public CreativeDisplayReceiver(WebView webView) {
+        this(webView, null);
     }
 
-    public CreativeDisplayReceiver(WebView webView, int requesterId, ViewGroup debugView) {
+    public CreativeDisplayReceiver(WebView webView, ViewGroup debugView) {
         this.webView = webView;
-        this.requesterId = requesterId;
         this.debugView = debugView;
 
         this.webView.getSettings().setJavaScriptEnabled(true);
@@ -45,7 +43,7 @@ public class CreativeDisplayReceiver extends BroadcastReceiver {
 
     @Override
     public void onReceive(final Context context, final Intent intent) {
-        if (intent.getIntExtra("requesterId", -1) != this.requesterId)
+        if (intent.getIntExtra("requesterId", -1) != this.webView.getId())
             return; // Message not for me :'(
 
         final String creativeFile = intent.getStringExtra(Constants.PREFETCHED_CREATIVE_FILE_ARG);
@@ -86,10 +84,10 @@ public class CreativeDisplayReceiver extends BroadcastReceiver {
 
     private static void sendEvent(Context context, Intent intent) {
         Intent auctionIntent;
-        auctionIntent = new Intent(context, BiddingIntentService.class);
-        auctionIntent.setAction(Constants.NOTIFICATION_ACTION);
-        auctionIntent.putExtra(Constants.AUCTION_RESULT_ARG,
-                intent.getSerializableExtra(Constants.AUCTION_RESULT_ARG));
+
+        auctionIntent = new Intent(context, BiddingIntentService.class)
+            .setAction(Constants.NOTIFICATION_ACTION)
+            .putExtra(Constants.AUCTION_RESULT_ARG, intent.getSerializableExtra(Constants.AUCTION_RESULT_ARG));
 
         context.startService(auctionIntent);
     }

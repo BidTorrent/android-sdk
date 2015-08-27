@@ -6,7 +6,6 @@ import android.view.View;
 import android.webkit.WebView;
 import android.widget.Button;
 import android.widget.FrameLayout;
-import android.widget.TextView;
 
 import com.bidtorrent.biddingservice.api.BidTorrentHandler;
 
@@ -21,10 +20,12 @@ public class AuctionActivity extends ActionBarActivity {
         super.onCreate(savedInstanceState);
 
         setContentView(R.layout.activity_auction);
+
         this.bidButton = (Button)findViewById(R.id.bidButton);
         this.webView = (WebView)findViewById(R.id.webView);
-        this.debugLayout = (FrameLayout) findViewById(R.id.debugLayout);
-        this.handler = BidTorrentHandler.createHandler(this, this.webView, this.debugLayout, 4242);
+        this.debugLayout = (FrameLayout)findViewById(R.id.debugLayout);
+
+        this.handler = BidTorrentHandler.createHandler(this, this.webView, this.debugLayout);
 
         this.bidButton.setOnClickListener(new View.OnClickListener() {
             @Override

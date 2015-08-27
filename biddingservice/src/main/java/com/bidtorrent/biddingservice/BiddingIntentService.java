@@ -302,16 +302,19 @@ public class BiddingIntentService extends LongLivedService {
     {
         Intent responseAvailableIntent = new Intent(Constants.BID_AVAILABLE_INTENT);
 
-        responseAvailableIntent.putExtra(Constants.CREATIVE_CODE_ARG, auctionResult.getWinningBid().seatbid.get(0).bid.get(0).creative);
-        responseAvailableIntent.putExtra(Constants.BID_OPPORTUNITY_ARG, gson.toJson(bidOpportunity));
-        responseAvailableIntent.putExtra(Constants.AUCTION_ID_ARG, auctionId);
+        responseAvailableIntent
+                .putExtra(Constants.CREATIVE_CODE_ARG, auctionResult.getWinningBid().seatbid.get(0).bid.get(0).creative)
+                .putExtra(Constants.BID_OPPORTUNITY_ARG, gson.toJson(bidOpportunity))
+                .putExtra(Constants.AUCTION_ID_ARG, auctionId);
 
         this.sendBroadcast(responseAvailableIntent);
     }
 
     private void sendReadyToDisplayAd(WaitingClient client, ReadyAd ad) {
         Intent readyDisplay = new Intent(Constants.READY_TO_DISPLAY_AD_INTENT);
-        readyDisplay.putExtra(Constants.REQUESTER_ID_ARG, client.getId())
+
+        readyDisplay
+            .putExtra(Constants.REQUESTER_ID_ARG, client.getId())
             .putExtra(Constants.PREFETCHED_CREATIVE_FILE_ARG, ad.getCacheFileName())
             .putExtra(Constants.AUCTION_RESULT_ARG, ad.getResult());
 
