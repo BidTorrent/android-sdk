@@ -18,4 +18,8 @@ public class ExpiringItem implements Comparable<ExpiringItem> {
     public int compareTo(ExpiringItem another) {
         return this.expirationDate.compareTo(another.expirationDate);
     }
+
+    public void expire(){
+
+    }
 }

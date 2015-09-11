@@ -23,7 +23,7 @@ public class ActionFactory {
             PublisherConfiguration publisherConfiguration){
         switch (this.intent.getAction()){
             case Constants.BID_ACTION:
-                return new BidAction(context, prefetchedAdsPool);
+                return new BidAction(context, prefetchedAdsPool, publisherConfiguration);
             case Constants.FILL_PREFETCH_BUFFER_ACTION:
                 return new StorePrefetchedCreativeAction(prefetchedAdsPool);
             case Constants.PREFETCH_FAILED_ACTION:

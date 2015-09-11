@@ -17,6 +17,7 @@ import com.bidtorrent.bidding.messages.BidRequest;
 import com.bidtorrent.biddingservice.BiddingIntentService;
 import com.bidtorrent.biddingservice.Constants;
 import com.bidtorrent.biddingservice.receivers.CreativeDisplayReceiver;
+import com.bidtorrent.biddingservice.receivers.PassbackDisplayReceiver;
 import com.bidtorrent.biddingservice.receivers.PrefetchReceiver;
 import com.google.api.client.json.Json;
 import com.google.gson.Gson;
@@ -34,6 +35,7 @@ public class BidTorrentHandler {
     private BroadcastReceiver auctionErrorReceiver;
     private BroadcastReceiver displayReceiver;
     private BroadcastReceiver prefetchReceiver;
+    private BroadcastReceiver passbackReceiver;
 
     public static BidTorrentHandler createHandler(Context context, WebView adView, ViewGroup debugLayout){
         return new BidTorrentHandler(context, adView, debugLayout);
@@ -46,6 +48,7 @@ public class BidTorrentHandler {
         this.auctionErrorReceiver = this.createErrorReceiver();
         this.displayReceiver = new CreativeDisplayReceiver(adView, this.debugLayout);
         this.prefetchReceiver = new PrefetchReceiver(new Handler(context.getMainLooper()));
+        this.passbackReceiver = new PassbackDisplayReceiver(adView);
 
         this.adView = adView;
 
@@ -56,6 +59,7 @@ public class BidTorrentHandler {
         this.context.registerReceiver(this.auctionErrorReceiver, new IntentFilter(Constants.AUCTION_FAILED_INTENT));
         this.context.registerReceiver(this.displayReceiver, new IntentFilter(Constants.READY_TO_DISPLAY_AD_INTENT));
         this.context.registerReceiver(this.prefetchReceiver, new IntentFilter(Constants.BID_AVAILABLE_INTENT));
+        this.context.registerReceiver(this.passbackReceiver, new IntentFilter(Constants.DISPLAY_PASSBACK_AD_INTENT));
 
         this.context.startService(new Intent(context, BiddingIntentService.class));
     }
@@ -64,6 +68,7 @@ public class BidTorrentHandler {
         this.context.unregisterReceiver(this.auctionErrorReceiver);
         this.context.unregisterReceiver(this.displayReceiver);
         this.context.unregisterReceiver(this.prefetchReceiver);
+        this.context.unregisterReceiver(this.passbackReceiver);
     }
 
     public void runAuction(){

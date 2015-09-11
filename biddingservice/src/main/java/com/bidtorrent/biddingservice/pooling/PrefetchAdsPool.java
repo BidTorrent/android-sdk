@@ -28,6 +28,7 @@ public class PrefetchAdsPool {
 
     private final PoolSizer pool;
     private final MyTwoParametersFunction<WaitingClient, ReadyAd> triggerClientDisplay;
+    private final Function<WaitingClient, Boolean> triggerClientPassback;
     private final Function<BidOpportunity, ListenableFuture<AuctionResult>> triggerBid;
     private final MyThreeParametersFunction<BidOpportunity, AuctionResult, Long> triggerPrefetch;
     private final AtomicLong currentAuctionId;
@@ -40,12 +41,13 @@ public class PrefetchAdsPool {
             Function<BidOpportunity, ListenableFuture<AuctionResult>> triggerBid,
             MyThreeParametersFunction<BidOpportunity, AuctionResult, Long> triggerPrefetch,
             long clientExpirationInMillis,
-            boolean connectionAvailable) {
+            boolean connectionAvailable, Function<WaitingClient, Boolean> triggerClientPassback) {
         this.pool = pool;
         this.triggerClientDisplay = triggerClientDisplay;
         this.triggerBid = triggerBid;
         this.triggerPrefetch = triggerPrefetch;
         this.clientExpirationInMillis = clientExpirationInMillis;
+        this.triggerClientPassback = triggerClientPassback;
         this.waitingForBids = new HashMap<>();
         this.waitingForPrefetch = new HashMap<>();
         this.readyAds = new HashMap<>();
@@ -80,7 +82,7 @@ public class PrefetchAdsPool {
 
             this.waitingClients.get(opp).add(new WaitingClient(
                 new Date(System.currentTimeMillis() + this.clientExpirationInMillis),
-                clientId));
+                clientId, triggerClientPassback));
         }
 
         refreshBuckets(opp);
@@ -219,9 +221,14 @@ public class PrefetchAdsPool {
     {
         Iterator<Map.Entry<Long, T>> it = toClean.entrySet().iterator();
 
-        while (it.hasNext()) {
-            if (it.next().getValue().isExpired())
-                it.remove();
+        while (it.hasNext())
+            expireIt(it, it.next().getValue());
+    }
+
+    private static <T extends ExpiringItem> void expireIt(Iterator it, T expirable) {
+        if (expirable.isExpired()){
+            it.remove();
+            expirable.expire();
         }
     }
 
@@ -230,10 +237,7 @@ public class PrefetchAdsPool {
         Iterator<T> it = toClean.iterator();
 
         while (it.hasNext())
-        {
-            if (it.next().isExpired())
-                it.remove();
-        }
+            expireIt(it, it.next());
     }
 
     public void prefetchFailed(BidOpportunity opp, long auctionId) {

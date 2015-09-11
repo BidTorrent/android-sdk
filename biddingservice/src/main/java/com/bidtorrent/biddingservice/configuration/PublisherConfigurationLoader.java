@@ -112,6 +112,7 @@ public class PublisherConfigurationLoader {
 
         configuration.tmax = Integer.parseInt(properties.getProperty("tmax", "-1"));
         configuration.ext = new Ext(Integer.parseInt(properties.getProperty("ext.btid", "-1")));
+        configuration.passback = properties.getProperty("passback");
 
         if (configuration.app.publisher.id.equals(""))
             throw new IllegalArgumentException("Publisher Id is mandatory for configuration");
@@ -179,6 +180,7 @@ public class PublisherConfigurationLoader {
         }
 
         if (localConfiguration.tmax != -1) finalConfiguration.tmax = localConfiguration.tmax;
+        if (!localConfiguration.passback.equals("")) finalConfiguration.passback = localConfiguration.passback;
 
         return finalConfiguration;
     }

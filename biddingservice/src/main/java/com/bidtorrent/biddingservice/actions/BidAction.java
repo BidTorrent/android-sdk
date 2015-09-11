@@ -4,6 +4,7 @@ import android.content.Context;
 import android.content.Intent;
 
 import com.bidtorrent.bidding.BidOpportunity;
+import com.bidtorrent.bidding.messages.configuration.PublisherConfiguration;
 import com.bidtorrent.biddingservice.Constants;
 import com.bidtorrent.biddingservice.pooling.PrefetchAdsPool;
 
@@ -11,10 +12,12 @@ public class BidAction implements ServiceAction {
 
     private Context context;
     private PrefetchAdsPool prefetchedAdsPool;
+    private PublisherConfiguration publisherConfiguration;
 
-    public BidAction(Context context, PrefetchAdsPool prefetchedAdsPool) {
+    public BidAction(Context context, PrefetchAdsPool prefetchedAdsPool, PublisherConfiguration publisherConfiguration) {
         this.context = context;
         this.prefetchedAdsPool = prefetchedAdsPool;
+        this.publisherConfiguration = publisherConfiguration;
     }
 
     @Override

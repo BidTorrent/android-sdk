@@ -15,6 +15,7 @@ public class PublisherConfiguration {
     public List<Imp> imp;
     public int tmax;
     public Ext ext;
+    public String passback;
 
     public PublisherConfiguration(){
         this.app = new App();
@@ -24,6 +25,7 @@ public class PublisherConfiguration {
         this.imp = new ArrayList<>();
         this.tmax = -1;
         this.ext = new Ext(-1);
+        this.passback = "";
     }
 
     public static int maximumBidders = 5;

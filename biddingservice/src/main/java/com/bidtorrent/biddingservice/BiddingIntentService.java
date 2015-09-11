@@ -30,6 +30,7 @@ import com.bidtorrent.biddingservice.pooling.PoolSizer;
 import com.bidtorrent.biddingservice.pooling.PrefetchAdsPool;
 import com.bidtorrent.biddingservice.pooling.ReadyAd;
 import com.bidtorrent.biddingservice.pooling.WaitingClient;
+import com.google.common.base.Function;
 import com.google.common.reflect.TypeToken;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
@@ -134,54 +135,6 @@ public class BiddingIntentService extends LongLivedService {
         return properties;
     }
 
-    private PublisherConfiguration loadBaseConfiguration() {
-        PublisherConfiguration configuration = new PublisherConfiguration();
-
-        try {
-            Properties properties = this.loadProperties();
-
-            configuration.app = new App();
-            configuration.app.cat = Arrays.asList(properties.getProperty("app.cat").split(","));
-            configuration.app.domain = properties.getProperty("app.domain");
-            configuration.app.publisher = new Publisher(properties.getProperty("app.publisher.id"), properties.getProperty("app.publisher.name"));
-
-            configuration.badv = Arrays.asList(properties.getProperty("badv").split(","));
-            configuration.bcat = Arrays.asList(properties.getProperty("bcat").split(","));
-            configuration.cur = properties.getProperty("cur");
-            configuration.imp = Arrays.asList(
-                    new Imp(
-                            new Banner(
-                                    readBType(properties),
-                                    Integer.parseInt(properties.getProperty("imp.banner.h", "-1")),
-                                    0,
-                                    Integer.parseInt(properties.getProperty("imp.banner.w", "-1"))),
-                            Float.parseFloat(properties.getProperty("1.75", "-1")),
-                            "",
-                            Integer.parseInt(properties.getProperty("imp.instl", "-1")),
-                            Boolean.parseBoolean(properties.getProperty("imp.secure", "false"))));
-
-            configuration.tmax = Integer.parseInt(properties.getProperty("tmax", "-1"));
-            configuration.ext = new Ext();
-            configuration.ext.btid = Integer.parseInt(properties.getProperty("ext.btid", "-1"));
-
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-
-        if (configuration.app.publisher.id.equals(""))
-            throw new IllegalArgumentException("Publisher Id is mandatory for configuration");
-
-        return configuration;
-    }
-
-    private static List<Integer> readBType(Properties properties) {
-        List<Integer> list = new ArrayList<>();
-        for (String s : properties.getProperty("imp.banner.btype").split(",")){
-            list.add(Integer.parseInt(s));
-        }
-        return list;
-    }
-
     private void initializeWithConfiguration(PublisherConfiguration result, List<BidderConfiguration> bidders) {
         this.publisherConfiguration = result;
         this.selector = new BidderSelector(this.publisherConfiguration);
@@ -215,7 +168,17 @@ public class BiddingIntentService extends LongLivedService {
                     public void apply(BidOpportunity bidOpportunity, AuctionResult auctionResult, Long auctionId) {
                         sendItToPrefetch(auctionResult, bidOpportunity, auctionId);
                     }
-                }, 5 * 60 * 1000, this.isNetworkAvailable());
+                }, 5 * 60 * 1000, this.isNetworkAvailable(), new Function<WaitingClient, Boolean>(){
+            @Override
+            public Boolean apply(WaitingClient waitingClient) {
+                Intent fallbackIntent = new Intent(Constants.DISPLAY_PASSBACK_AD_INTENT);
+                fallbackIntent.putExtra(Constants.PASSBACK_URL_ARG, publisherConfiguration.passback);
+                fallbackIntent.putExtra(Constants.REQUESTER_ID_ARG, waitingClient.getId());
+                sendBroadcast(fallbackIntent);
+
+                return true;
+            }
+        });
                 //Timeouts?                150000, 5 * 60 * 1000);
 
     }

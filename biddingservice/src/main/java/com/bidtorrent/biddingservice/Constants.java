@@ -11,10 +11,12 @@ public final class Constants {
     public static final String NOTIFICATION_URL_ARG = "notif";
     public static final String AUCTION_ID_ARG = "auction-id";
     public static final String AUCTION_RESULT_ARG = "auctionResult";
+    public static final String PASSBACK_URL_ARG = "fallback-url";
 
     // Intents
     public static final String BID_AVAILABLE_INTENT = "bid-available";
     public static final String AUCTION_FAILED_INTENT = "auction-failed";
+    public static final String DISPLAY_PASSBACK_AD_INTENT = "fallback-please";
     public static final String READY_TO_DISPLAY_AD_INTENT = "ready-to-display";
 
     // Actions
