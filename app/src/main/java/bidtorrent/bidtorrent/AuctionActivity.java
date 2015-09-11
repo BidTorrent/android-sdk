@@ -25,6 +25,7 @@ public class AuctionActivity extends ActionBarActivity {
         this.webView = (WebView)findViewById(R.id.webView);
         this.debugLayout = (FrameLayout)findViewById(R.id.debugLayout);
 
+        //TODO get impression ID from local configuration
         this.handler = BidTorrentHandler.createHandler("skyCrapperAd", this, this.webView, this.debugLayout);
 
         this.bidButton.setOnClickListener(new View.OnClickListener() {
