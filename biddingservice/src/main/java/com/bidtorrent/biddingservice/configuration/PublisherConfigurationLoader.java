@@ -148,10 +148,10 @@ public class PublisherConfigurationLoader {
         return properties;
     }
 
-    private static PublisherConfiguration mergeConfigurations(PublisherConfiguration distanceConfiguration,
+    private static PublisherConfiguration mergeConfigurations(PublisherConfiguration distantConfiguration,
                                                               PublisherConfiguration localConfiguration) {
 
-        PublisherConfiguration finalConfiguration = distanceConfiguration;
+        PublisherConfiguration finalConfiguration = distantConfiguration;
 
         finalConfiguration.app.cat.addAll(localConfiguration.app.cat);
 

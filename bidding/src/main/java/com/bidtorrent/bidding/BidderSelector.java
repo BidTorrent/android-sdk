@@ -1,6 +1,8 @@
 package com.bidtorrent.bidding;
 
 import com.bidtorrent.bidding.messages.Geo;
+import com.bidtorrent.bidding.messages.configuration.BidderConfiguration;
+import com.bidtorrent.bidding.messages.configuration.PublisherConfiguration;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -14,18 +16,16 @@ import java.util.concurrent.ThreadLocalRandom;
 
 public class BidderSelector
 {
-    private Collection<com.bidtorrent.bidding.messages.configuration.BidderConfiguration> bidders;
-    private com.bidtorrent.bidding.messages.configuration.PublisherConfiguration publisherConfiguration;
+    private Collection<BidderConfiguration> bidders;
+    private PublisherConfiguration publisherConfiguration;
     private static Random random = ThreadLocalRandom.current();
 
-    public BidderSelector(com.bidtorrent.bidding.messages.configuration.PublisherConfiguration publisherConfiguration){
+    public BidderSelector(PublisherConfiguration publisherConfiguration){
         this.publisherConfiguration = publisherConfiguration;
         this.bidders = new LinkedBlockingQueue<>();
     }
 
-    public boolean acceptBidder(
-        com.bidtorrent.bidding.messages.configuration.PublisherConfiguration publisherConfiguration,
-        com.bidtorrent.bidding.messages.configuration.BidderConfiguration bidderConfiguration)
+    public boolean acceptBidder(PublisherConfiguration publisherConfiguration, BidderConfiguration bidderConfiguration)
     {
         Collection<String> cat_bl;
         String country;
@@ -92,17 +92,19 @@ public class BidderSelector
         return true;
     }
 
-    public void addBidder(com.bidtorrent.bidding.messages.configuration.BidderConfiguration bidder){
+    public void addBidder(BidderConfiguration bidder)
+    {
         this.bidders.add(bidder);
     }
 
-    public List<com.bidtorrent.bidding.messages.configuration.BidderConfiguration> getAvailableBidders(){
-        LinkedList<com.bidtorrent.bidding.messages.configuration.BidderConfiguration> bidderConfigurations = new LinkedList<>(this.bidders);
+    public List<BidderConfiguration> getAvailableBidders()
+    {
+        LinkedList<BidderConfiguration> bidderConfigurations = new LinkedList<>(this.bidders);
         Collections.shuffle(bidderConfigurations);
 
-        List<com.bidtorrent.bidding.messages.configuration.BidderConfiguration> availableBidders = new ArrayList<>(publisherConfiguration.maximumBidders);
+        List<BidderConfiguration> availableBidders = new ArrayList<>(publisherConfiguration.maximumBidders);
 
-        for(com.bidtorrent.bidding.messages.configuration.BidderConfiguration bidder : bidderConfigurations){
+        for(BidderConfiguration bidder : bidderConfigurations){
             if (bidder.filters != null &&
                 bidder.filters.sampling < BidderSelector.random.nextFloat() * 100.f)
                 continue;

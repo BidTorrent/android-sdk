@@ -86,13 +86,15 @@ public class BiddingIntentService extends LongLivedService {
         this.notificator = new Notificator(this.pooledHttpClient);
         this.pendingIntentsTimer = new Timer();
 
-        ListenableFuture<PublisherConfiguration> publisherConfiguration = this.loadPublisherConfiguration();
+        this.configure();
 
-        Type listType = new TypeToken<List<BidderConfiguration>>(){}.getType();
-        
-        ListenableFuture<List<BidderConfiguration>> futureBiddersConfiguration = pooledHttpClient.jsonGet(
-                "http://www.bidtorrent.io/api/bidders",
-                listType);
+        startPoolMonitors();
+    }
+
+    private void configure()
+    {
+        ListenableFuture<PublisherConfiguration> publisherConfiguration = this.loadPublisherConfiguration();
+        ListenableFuture<List<BidderConfiguration>> futureBiddersConfiguration = this.loadBiddersConfiguration();
 
         ListenableFuture<List<Object>> allConfigurationsFuture = Futures.allAsList(publisherConfiguration, futureBiddersConfiguration);
 
@@ -112,8 +114,13 @@ public class BiddingIntentService extends LongLivedService {
                 Log.e("BiddingIntentService", "Failed to retrieve configuration", t);
             }
         });
+    }
 
-        startPoolMonitors();
+    private ListenableFuture<List<BidderConfiguration>> loadBiddersConfiguration()
+    {
+        return this.pooledHttpClient.jsonGet(
+                "http://www.bidtorrent.io/api/bidders",
+                new TypeToken<List<BidderConfiguration>>(){}.getType());
     }
 
     private ListenableFuture<PublisherConfiguration> loadPublisherConfiguration()
@@ -138,14 +145,11 @@ public class BiddingIntentService extends LongLivedService {
     private void initializeWithConfiguration(PublisherConfiguration result, List<BidderConfiguration> bidders) {
         this.publisherConfiguration = result;
         this.selector = new BidderSelector(this.publisherConfiguration);
-
-        this.auctioneer = new Auctioneer(
-                this.publisherConfiguration.tmax,
-                Executors.newCachedThreadPool());
+        this.auctioneer = new Auctioneer(this.publisherConfiguration.tmax, Executors.newCachedThreadPool());
 
         //FIXME: Poll real bidders
-        for (BidderConfiguration bidderConfig : bidders){
-            if(this.selector.acceptBidder(publisherConfiguration, bidderConfig))
+        for (BidderConfiguration bidderConfig : bidderConfigurations){
+            if(this.selector.acceptBidder(this.publisherConfiguration, bidderConfig))
                 this.selector.addBidder(bidderConfig);
         }
 
