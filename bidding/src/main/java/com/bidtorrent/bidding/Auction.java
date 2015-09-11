@@ -1,28 +1,25 @@
 package com.bidtorrent.bidding;
 
+import com.bidtorrent.bidding.messages.Imp;
+
 import java.util.List;
 
 public class Auction {
-    private final BidOpportunity opportunity;
     private final List<IBidder> bidders;
-    private final float floor;
+    private final Imp impression;
 
-    public Auction(BidOpportunity opportunity, List<IBidder> bidders, float floor)
+    public Auction(Imp impressionId, List<IBidder> bidders)
     {
-        this.opportunity = opportunity;
         this.bidders = bidders;
-        this.floor = floor;
+        this.impression = impressionId;
+    }
+
+    public Imp getImpression() {
+        return this.impression;
     }
 
     public List<IBidder> getBidders() {
-        return bidders;
+        return this.bidders;
     }
 
-    public BidOpportunity getOpportunity() {
-        return opportunity;
-    }
-
-    public float getFloor() {
-        return floor;
-    }
 }

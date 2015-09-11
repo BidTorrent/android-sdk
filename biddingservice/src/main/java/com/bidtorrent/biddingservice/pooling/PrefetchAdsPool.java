@@ -1,7 +1,7 @@
 package com.bidtorrent.biddingservice.pooling;
 
 import com.bidtorrent.bidding.AuctionResult;
-import com.bidtorrent.bidding.BidOpportunity;
+import com.bidtorrent.bidding.messages.Imp;
 import com.google.common.base.Function;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
@@ -18,19 +18,17 @@ import java.util.concurrent.atomic.AtomicLong;
 
 public class PrefetchAdsPool {
     public static final int PREFETCH_EXPIRATION_TIME_LIMIT = 10 * 1000;
-    private final Map<BidOpportunity, Map<Long, ExpiringItem>> waitingForBids;
-    private final Map<BidOpportunity, Map<Long, PendingPrefetchItem>> waitingForPrefetch;
-    private final Map<BidOpportunity, Collection<ReadyAd>> readyAds;
-
-    private final Map<BidOpportunity, TreeSet<WaitingClient>> waitingClients;
-
-    private final Map<BidOpportunity, Object> opportunityLocks;
+    private final Map<Imp, Map<Long, ExpiringItem>> waitingForBids;
+    private final Map<Imp, Map<Long, PendingPrefetchItem>> waitingForPrefetch;
+    private final Map<Imp, Collection<ReadyAd>> readyAds;
+    private final Map<Imp, TreeSet<WaitingClient>> waitingClients;
+    private final Map<Imp, Object> opportunityLocks;
 
     private final PoolSizer pool;
     private final MyTwoParametersFunction<WaitingClient, ReadyAd> triggerClientDisplay;
     private final Function<WaitingClient, Boolean> triggerClientPassback;
-    private final Function<BidOpportunity, ListenableFuture<AuctionResult>> triggerBid;
-    private final MyThreeParametersFunction<BidOpportunity, AuctionResult, Long> triggerPrefetch;
+    private final Function<Imp, ListenableFuture<AuctionResult>> triggerBid;
+    private final MyThreeParametersFunction<Imp, AuctionResult, Long> triggerPrefetch;
     private final AtomicLong currentAuctionId;
     private long clientExpirationInMillis;
     private AtomicBoolean hasConnection;
@@ -38,8 +36,8 @@ public class PrefetchAdsPool {
     public PrefetchAdsPool(
             PoolSizer pool,
             MyTwoParametersFunction<WaitingClient, ReadyAd> triggerClientDisplay,
-            Function<BidOpportunity, ListenableFuture<AuctionResult>> triggerBid,
-            MyThreeParametersFunction<BidOpportunity, AuctionResult, Long> triggerPrefetch,
+            Function<Imp, ListenableFuture<AuctionResult>> triggerBid,
+            MyThreeParametersFunction<Imp, AuctionResult, Long> triggerPrefetch,
             long clientExpirationInMillis,
             boolean connectionAvailable, Function<WaitingClient, Boolean> triggerClientPassback) {
         this.pool = pool;
@@ -57,86 +55,85 @@ public class PrefetchAdsPool {
         this.hasConnection = new AtomicBoolean(connectionAvailable);
     }
 
-    public void addWaitingClient(BidOpportunity opp, int clientId)
+    public void addWaitingClient(Imp impression, int clientId)
     {
         synchronized (opportunityLocks) {
-            if (!opportunityLocks.containsKey(opp))
-                opportunityLocks.put(opp, new Object());
+            if (!opportunityLocks.containsKey(impression))
+                opportunityLocks.put(impression, new Object());
         }
 
-        synchronized (opportunityLocks.get(opp)){
-            if (!this.waitingForBids.containsKey(opp))
-                this.waitingForBids.put(opp, new HashMap<Long, ExpiringItem>());
+        synchronized (opportunityLocks.get(impression)){
+            if (!this.waitingForBids.containsKey(impression))
+                this.waitingForBids.put(impression, new HashMap<Long, ExpiringItem>());
 
-            if (!this.waitingForPrefetch.containsKey(opp))
-                this.waitingForPrefetch.put(opp, new HashMap<Long, PendingPrefetchItem>());
+            if (!this.waitingForPrefetch.containsKey(impression))
+                this.waitingForPrefetch.put(impression, new HashMap<Long, PendingPrefetchItem>());
 
-            if (!this.readyAds.containsKey(opp)){
+            if (!this.readyAds.containsKey(impression)){
                 //FIXME: Treeset?
-                this.readyAds.put(opp, new TreeSet<ReadyAd>());
+                this.readyAds.put(impression, new TreeSet<ReadyAd>());
             }
 
-            if (!this.waitingClients.containsKey(opp)){
-                this.waitingClients.put(opp, new TreeSet<WaitingClient>());
+            if (!this.waitingClients.containsKey(impression)){
+                this.waitingClients.put(impression, new TreeSet<WaitingClient>());
             }
 
-            this.waitingClients.get(opp).add(new WaitingClient(
+            this.waitingClients.get(impression).add(new WaitingClient(
                 new Date(System.currentTimeMillis() + this.clientExpirationInMillis),
                 clientId, triggerClientPassback));
         }
 
-        refreshBuckets(opp);
+        refreshBuckets(impression);
     }
 
     public void updateConnectionStatus(boolean hasConnection){
         this.hasConnection.set(hasConnection);
     }
 
-    public void addPrefetchedItem(BidOpportunity opp, long auctionId, String fileName, Date expirationDate){
-        synchronized (opportunityLocks.get(opp)){
-            PendingPrefetchItem pendingPrefetchItem = this.waitingForPrefetch.get(opp).remove(auctionId);
+    public void addPrefetchedItem(Imp impression, long auctionId, String fileName, Date expirationDate){
+        synchronized (opportunityLocks.get(impression)){
+            PendingPrefetchItem pendingPrefetchItem = this.waitingForPrefetch.get(impression).remove(auctionId);
             if (this.hasConnection.get() && pendingPrefetchItem != null){
-                this.readyAds.get(opp).add(new ReadyAd(pendingPrefetchItem.getResult(), fileName, expirationDate));
+                this.readyAds.get(impression).add(new ReadyAd(pendingPrefetchItem.getResult(), fileName, expirationDate));
             }
         }
 
-        this.refreshBuckets(opp); //New data available
+        this.refreshBuckets(impression); //New data available
     }
 
     public void refreshBuckets()
     {
         if (!this.hasConnection.get()) return;
 
-        for (BidOpportunity opp: opportunityLocks.keySet()) {
-            refreshBuckets(opp);
+        for (Imp impression: opportunityLocks.keySet()) {
+            refreshBuckets(impression);
         }
     }
 
-    private void refreshBuckets(BidOpportunity opp) {
-        removeExpiredItems(opp);
-        feedWaitingClients(opp);
-        refillBidBucket(opp);
-        runAuctions(opp);
+    private void refreshBuckets(Imp impression) {
+        removeExpiredItems(impression);
+        feedWaitingClients(impression);
+        refillBidBucket(impression);
+        runAuctions(impression);
     }
 
     public void discardQueuedItems() {
-        for (BidOpportunity opp: opportunityLocks.keySet()) {
-            discardQueuedItems(opp);
+        for (Imp impression: opportunityLocks.keySet()) {
+            discardQueuedItems(impression);
         }
     }
 
-    private void discardQueuedItems(BidOpportunity opp) {
-        synchronized (opportunityLocks.get(opp)) {
-            this.waitingForBids.get(opp).clear();
-            this.waitingForPrefetch.get(opp).clear();
+    private void discardQueuedItems(Imp impression) {
+        synchronized (opportunityLocks.get(impression)) {
+            this.waitingForBids.get(impression).clear();
+            this.waitingForPrefetch.get(impression).clear();
         }
     }
 
-
-    private void runAuctions(final BidOpportunity opp){
-        synchronized (opportunityLocks.get(opp)) {
-            for (final Map.Entry<Long, ExpiringItem> waitingBid : this.waitingForBids.get(opp).entrySet()) {
-                ListenableFuture<AuctionResult> future = this.triggerBid.apply(opp);
+    private void runAuctions(final Imp impression){
+        synchronized (opportunityLocks.get(impression)) {
+            for (final Map.Entry<Long, ExpiringItem> waitingBid : this.waitingForBids.get(impression).entrySet()) {
+                ListenableFuture<AuctionResult> future = this.triggerBid.apply(impression);
 
                 if (future == null) continue;
 
@@ -145,14 +142,14 @@ public class PrefetchAdsPool {
                     public void onSuccess(AuctionResult result) {
                         //Should not take more than 10 secs to prefetch, then discard
                         Date prefetchExpirationDate = new Date(System.currentTimeMillis() + PREFETCH_EXPIRATION_TIME_LIMIT);
-                        onAuctionResultReady(result, opp, waitingBid.getKey(), prefetchExpirationDate);
+                        onAuctionResultReady(result, impression, waitingBid.getKey(), prefetchExpirationDate);
                     }
 
                     @Override
                     public void onFailure(Throwable t) {
                         t.printStackTrace();
-                        synchronized (opportunityLocks.get(opp)) {
-                            waitingForBids.get(opp).remove(waitingBid.getKey());
+                        synchronized (opportunityLocks.get(impression)) {
+                            waitingForBids.get(impression).remove(waitingBid.getKey());
                         }
                     }
                 });
@@ -160,37 +157,45 @@ public class PrefetchAdsPool {
         }
     }
 
-    private void refillBidBucket(final BidOpportunity opp) {
-        synchronized (opportunityLocks.get(opp)) {
-            System.out.println("************** Already: " + readyAds.get(opp).size() + this.waitingForPrefetch.get(opp).size() + this.waitingForBids.get(opp).size());
-            System.out.println("************** ToHave: " + waitingClients.get(opp).size() + pool.getPoolSize());
+    private void refillBidBucket(final Imp impression) {
+        synchronized (opportunityLocks.get(impression)) {
+            System.out.println("************** Already: " +
+                    readyAds.get(impression).size() +
+                    this.waitingForPrefetch.get(impression).size() +
+                    this.waitingForBids.get(impression).size());
 
-            while (this.readyAds.get(opp).size() + this.waitingForPrefetch.get(opp).size() + this.waitingForBids.get(opp).size()
-                    < waitingClients.get(opp).size() + pool.getPoolSize()){
+            System.out.println("************** ToHave: " +
+                    waitingClients.get(impression).size() +
+                    pool.getPoolSize());
+
+            while (this.readyAds.get(impression).size() +
+                this.waitingForPrefetch.get(impression).size() +
+                this.waitingForBids.get(impression).size() < waitingClients.get(impression).size() + pool.getPoolSize())
+            {
                 final long currentId = this.currentAuctionId.incrementAndGet();
                 final Date expirationDate = new Date(System.currentTimeMillis() + 100000); //FIXME
 
-                this.waitingForBids.get(opp).put(currentId, new ExpiringItem(expirationDate));
+                this.waitingForBids.get(impression).put(currentId, new ExpiringItem(expirationDate));
             }
         }
     }
 
-    private void onAuctionResultReady(AuctionResult input, BidOpportunity opp, long currentId, Date expirationDate) {
-        synchronized (opportunityLocks.get(opp)){
-            if (waitingForBids.get(opp).remove(currentId) != null){
+    private void onAuctionResultReady(AuctionResult input, Imp impression, long currentId, Date expirationDate) {
+        synchronized (opportunityLocks.get(impression)){
+            if (waitingForBids.get(impression).remove(currentId) != null){
                 if (this.hasConnection.get()){
-                    waitingForPrefetch.get(opp).put(currentId, new PendingPrefetchItem(input, expirationDate));
-                    this.triggerPrefetch.apply(opp, input, currentId);
+                    waitingForPrefetch.get(impression).put(currentId, new PendingPrefetchItem(input, expirationDate));
+                    this.triggerPrefetch.apply(impression, input, currentId);
                 }
             }
         }
     }
 
-    private void feedWaitingClients(BidOpportunity opp) {
-        synchronized (opportunityLocks.get(opp))
+    private void feedWaitingClients(Imp impression) {
+        synchronized (opportunityLocks.get(impression))
         {
-            TreeSet<WaitingClient> waitingClients = this.waitingClients.get(opp);
-            Iterator<ReadyAd> readyAdIterator = this.readyAds.get(opp).iterator();
+            TreeSet<WaitingClient> waitingClients = this.waitingClients.get(impression);
+            Iterator<ReadyAd> readyAdIterator = this.readyAds.get(impression).iterator();
 
             while (readyAdIterator.hasNext())
             {
@@ -206,14 +211,14 @@ public class PrefetchAdsPool {
         }
     }
 
-    public void removeExpiredItems(BidOpportunity opp)
+    public void removeExpiredItems(Imp impression)
     {
-        synchronized (opportunityLocks.get(opp))
+        synchronized (opportunityLocks.get(impression))
         {
-            removeIfExpired(this.waitingClients.get(opp));
-            removeIfExpired(this.waitingForBids.get(opp));
-            removeIfExpired(this.waitingForPrefetch.get(opp));
-            removeIfExpired(this.readyAds.get(opp));
+            removeIfExpired(this.waitingClients.get(impression));
+            removeIfExpired(this.waitingForBids.get(impression));
+            removeIfExpired(this.waitingForPrefetch.get(impression));
+            removeIfExpired(this.readyAds.get(impression));
         }
     }
 
@@ -240,9 +245,9 @@ public class PrefetchAdsPool {
             expireIt(it, it.next());
     }
 
-    public void prefetchFailed(BidOpportunity opp, long auctionId) {
-        synchronized (opportunityLocks.get(opp)){
-            this.waitingForPrefetch.get(opp).remove(auctionId);
+    public void prefetchFailed(Imp impression, long auctionId) {
+        synchronized (opportunityLocks.get(impression)){
+            this.waitingForPrefetch.get(impression).remove(auctionId);
         }
     }
 }

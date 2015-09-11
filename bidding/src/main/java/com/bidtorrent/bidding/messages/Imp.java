@@ -15,4 +15,19 @@ public class Imp {
         this.instl = instl;
         this.secure = secure;
     }
+
+    @Override
+    public boolean equals(Object o)
+    {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        Imp that = (Imp)o;
+        return this.id.equals(that.id);
+    }
+
+    @Override
+    public int hashCode()
+    {
+        return this.id.hashCode();
+    }
 }

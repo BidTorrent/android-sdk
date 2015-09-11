@@ -7,11 +7,11 @@ public final class Constants {
     public static final String PREFETCHED_CREATIVE_FILE_ARG = "creativeFile";
     public static final String PREFETCHED_CREATIVE_EXPIRATION_ARG = "dontexpireme";
     public static final String REQUESTER_ID_ARG = "requesterId";
-    public static final String BID_OPPORTUNITY_ARG = "dsadas";
     public static final String NOTIFICATION_URL_ARG = "notif";
     public static final String AUCTION_ID_ARG = "auction-id";
     public static final String AUCTION_RESULT_ARG = "auctionResult";
     public static final String PASSBACK_URL_ARG = "fallback-url";
+    public static final String IMPRESSION_ID_ARG = "impressionId";
 
     // Intents
     public static final String BID_AVAILABLE_INTENT = "bid-available";

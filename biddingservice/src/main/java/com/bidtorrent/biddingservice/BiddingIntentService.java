@@ -10,15 +10,10 @@ import android.util.Log;
 
 import com.bidtorrent.bidding.AuctionResult;
 import com.bidtorrent.bidding.Auctioneer;
-import com.bidtorrent.bidding.BidOpportunity;
 import com.bidtorrent.bidding.BidderSelector;
 import com.bidtorrent.bidding.Notificator;
 import com.bidtorrent.bidding.PooledHttpClient;
-import com.bidtorrent.bidding.messages.App;
-import com.bidtorrent.bidding.messages.Banner;
-import com.bidtorrent.bidding.messages.Ext;
 import com.bidtorrent.bidding.messages.Imp;
-import com.bidtorrent.bidding.messages.Publisher;
 import com.bidtorrent.bidding.messages.configuration.BidderConfiguration;
 import com.bidtorrent.bidding.messages.configuration.PublisherConfiguration;
 import com.bidtorrent.biddingservice.actions.ActionFactory;
@@ -42,9 +37,6 @@ import com.google.gson.GsonBuilder;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.lang.reflect.Type;
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Properties;
@@ -120,7 +112,8 @@ public class BiddingIntentService extends LongLivedService {
     {
         return this.pooledHttpClient.jsonGet(
                 "http://www.bidtorrent.io/api/bidders",
-                new TypeToken<List<BidderConfiguration>>(){}.getType());
+                new TypeToken<List<BidderConfiguration>>() {
+                }.getType());
     }
 
     private ListenableFuture<PublisherConfiguration> loadPublisherConfiguration()
@@ -142,7 +135,7 @@ public class BiddingIntentService extends LongLivedService {
         return properties;
     }
 
-    private void initializeWithConfiguration(PublisherConfiguration result, List<BidderConfiguration> bidders) {
+    private void initializeWithConfiguration(PublisherConfiguration result, List<BidderConfiguration> bidderConfigurations) {
         this.publisherConfiguration = result;
         this.selector = new BidderSelector(this.publisherConfiguration);
         this.auctioneer = new Auctioneer(this.publisherConfiguration.tmax, Executors.newCachedThreadPool());
@@ -167,10 +160,10 @@ public class BiddingIntentService extends LongLivedService {
                         this.pooledHttpClient,
                         this.executor,
                         this.auctioneer),
-                new MyThreeParametersFunction<BidOpportunity, AuctionResult, Long>() {
+                new MyThreeParametersFunction<Imp, AuctionResult, Long>() {
                     @Override
-                    public void apply(BidOpportunity bidOpportunity, AuctionResult auctionResult, Long auctionId) {
-                        sendItToPrefetch(auctionResult, bidOpportunity, auctionId);
+                    public void apply(Imp impression, AuctionResult auctionResult, Long auctionId) {
+                        sendItToPrefetch(auctionResult, impression, auctionId);
                     }
                 }, 5 * 60 * 1000, this.isNetworkAvailable(), new Function<WaitingClient, Boolean>(){
             @Override
@@ -200,11 +193,13 @@ public class BiddingIntentService extends LongLivedService {
             return;
 
         if (this.handleMissingConfiguration(intent))
+        {
             new ActionFactory(intent).create(
-                    this,
-                    this.prefetchedAdsPool,
-                    notificator,
-                    publisherConfiguration).handleIntent(intent);
+                this,
+                this.prefetchedAdsPool,
+                notificator,
+                publisherConfiguration).handleIntent(intent);
+        }
     }
 
     /**
@@ -251,13 +246,13 @@ public class BiddingIntentService extends LongLivedService {
         return false;
     }
 
-    private void sendItToPrefetch(AuctionResult auctionResult, BidOpportunity bidOpportunity, Long auctionId)
+    private void sendItToPrefetch(AuctionResult auctionResult, Imp impression, Long auctionId)
     {
         Intent responseAvailableIntent = new Intent(Constants.BID_AVAILABLE_INTENT);
 
         responseAvailableIntent
                 .putExtra(Constants.CREATIVE_CODE_ARG, auctionResult.getWinningBid().seatbid.get(0).bid.get(0).creative)
-                .putExtra(Constants.BID_OPPORTUNITY_ARG, gson.toJson(bidOpportunity))
+                .putExtra(Constants.IMPRESSION_ID_ARG, impression.id)
                 .putExtra(Constants.AUCTION_ID_ARG, auctionId);
 
         this.sendBroadcast(responseAvailableIntent);

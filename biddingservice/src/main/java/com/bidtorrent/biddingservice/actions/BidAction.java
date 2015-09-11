@@ -3,7 +3,8 @@ package com.bidtorrent.biddingservice.actions;
 import android.content.Context;
 import android.content.Intent;
 
-import com.bidtorrent.bidding.BidOpportunity;
+import com.bidtorrent.bidding.messages.Imp;
+import com.bidtorrent.bidding.messages.configuration.PublisherConfiguration;
 import com.bidtorrent.bidding.messages.configuration.PublisherConfiguration;
 import com.bidtorrent.biddingservice.Constants;
 import com.bidtorrent.biddingservice.pooling.PrefetchAdsPool;
@@ -22,25 +23,40 @@ public class BidAction implements ServiceAction {
 
     @Override
     public void handleIntent(Intent intent) {
-        BidOpportunity bidOpportunity;
+        Imp impression;
+        String impressionId;
         int requesterId;
 
-        bidOpportunity = ActionHelper.getBidOpportunity(intent);
+        impressionId = ActionHelper.getImpressionId(intent);
         requesterId = ActionHelper.getRequesterId(intent);
 
-        if (bidOpportunity == null) {
-            notifyFailure(String.format(
-                    "Failed to deserialize the request (should be in the %s field of the intent)",
-                    Constants.BID_OPPORTUNITY_ARG));
+        if (impressionId == "") {
+            notifyFailure(
+                String.format(
+                    "Failed to deserialize the impression Id (should be in the %s field of the intent)",
+                    Constants.IMPRESSION_ID_ARG));
+
             return;
         }
 
-        prefetchedAdsPool.addWaitingClient(bidOpportunity, requesterId);
+        impression = this.publisherConfiguration.getImpressionById(impressionId);
+        if (impression == null)
+        {
+            notifyFailure(
+                String.format("Failed to find impression with the Id=[%s]", impressionId));
+
+            return;
+        }
+
+        prefetchedAdsPool.addWaitingClient(impression, requesterId);
     }
 
     private void notifyFailure(String errorMsg) {
-        Intent responseAvailableIntent = new Intent(Constants.AUCTION_FAILED_INTENT);
+        Intent responseAvailableIntent;
+
+        responseAvailableIntent = new Intent(Constants.AUCTION_FAILED_INTENT);
         responseAvailableIntent.putExtra(Constants.AUCTION_ERROR_REASON_ARG, errorMsg);
-        context.sendBroadcast(responseAvailableIntent);
+
+        this.context.sendBroadcast(responseAvailableIntent);
     }
 }

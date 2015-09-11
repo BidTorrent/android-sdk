@@ -125,8 +125,8 @@ public class PrefetchReceiver extends BroadcastReceiver {
         auctionIntent = new Intent(context, BiddingIntentService.class);
         auctionIntent.setAction(action);
         auctionIntent.putExtra(Constants.PREFETCHED_CREATIVE_FILE_ARG, value)
-                .putExtra(Constants.BID_OPPORTUNITY_ARG,
-                        intent.getStringExtra(Constants.BID_OPPORTUNITY_ARG))
+                .putExtra(Constants.IMPRESSION_ID_ARG,
+                        intent.getStringExtra(Constants.IMPRESSION_ID_ARG))
                 .putExtra(Constants.NOTIFICATION_URL_ARG,
                         intent.getStringExtra(Constants.NOTIFICATION_URL_ARG))
                 .putExtra(Constants.AUCTION_ID_ARG,

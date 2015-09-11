@@ -25,9 +25,9 @@ public class ActionFactory {
             case Constants.BID_ACTION:
                 return new BidAction(context, prefetchedAdsPool, publisherConfiguration);
             case Constants.FILL_PREFETCH_BUFFER_ACTION:
-                return new StorePrefetchedCreativeAction(prefetchedAdsPool);
+                return new StorePrefetchedCreativeAction(prefetchedAdsPool, publisherConfiguration);
             case Constants.PREFETCH_FAILED_ACTION:
-                return new PrefetchFailedAction(prefetchedAdsPool);
+                return new PrefetchFailedAction(prefetchedAdsPool, publisherConfiguration);
             case Constants.NOTIFICATION_ACTION:
                 return new NotificationsAction(notificator, publisherConfiguration);
 

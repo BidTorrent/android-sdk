@@ -11,46 +11,39 @@ import android.view.ViewGroup;
 import android.webkit.WebView;
 import android.widget.TextView;
 
-import com.bidtorrent.bidding.BidOpportunity;
-import com.bidtorrent.bidding.Size;
-import com.bidtorrent.bidding.messages.BidRequest;
 import com.bidtorrent.biddingservice.BiddingIntentService;
 import com.bidtorrent.biddingservice.Constants;
 import com.bidtorrent.biddingservice.receivers.CreativeDisplayReceiver;
 import com.bidtorrent.biddingservice.receivers.PassbackDisplayReceiver;
 import com.bidtorrent.biddingservice.receivers.PrefetchReceiver;
-import com.google.api.client.json.Json;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
-
-import java.io.FileReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
 
 public class BidTorrentHandler {
 
     private WebView adView;
     private Context context;
     private ViewGroup debugLayout;
+
+    private String impressionId;
+
     private BroadcastReceiver auctionErrorReceiver;
     private BroadcastReceiver displayReceiver;
     private BroadcastReceiver prefetchReceiver;
     private BroadcastReceiver passbackReceiver;
 
-    public static BidTorrentHandler createHandler(Context context, WebView adView, ViewGroup debugLayout){
-        return new BidTorrentHandler(context, adView, debugLayout);
+    public static BidTorrentHandler createHandler(String impressionId, Context context, WebView adView, ViewGroup debugLayout){
+        return new BidTorrentHandler(impressionId, context, adView, debugLayout);
     }
 
-    private BidTorrentHandler(Context context, WebView adView, ViewGroup debugLayout) {
+    private BidTorrentHandler(String impressionId, Context context, WebView adView, ViewGroup debugLayout) {
+        this.impressionId = impressionId;
         this.context = context;
         this.debugLayout = debugLayout;
+        this.adView = adView;
 
         this.auctionErrorReceiver = this.createErrorReceiver();
         this.displayReceiver = new CreativeDisplayReceiver(adView, this.debugLayout);
         this.prefetchReceiver = new PrefetchReceiver(new Handler(context.getMainLooper()));
         this.passbackReceiver = new PassbackDisplayReceiver(adView);
-
-        this.adView = adView;
 
         this.postCreate();
     }
@@ -72,20 +65,14 @@ public class BidTorrentHandler {
     }
 
     public void runAuction(){
-        Size adSize;
         Intent auctionIntent;
-        BidOpportunity opp;
-
-        adSize = new Size(this.adView.getWidth(), this.adView.getWidth());
-
-        opp = new BidOpportunity(adSize, "bidtorrent.dummy.app");
-
-        this.debugLayout.removeAllViews();
 
         auctionIntent = new Intent(this.context, BiddingIntentService.class)
             .setAction(Constants.BID_ACTION)
-            .putExtra(Constants.REQUESTER_ID_ARG, this.adView.getId())
-            .putExtra(Constants.BID_OPPORTUNITY_ARG, new GsonBuilder().create().toJson(opp));
+            .putExtra(Constants.IMPRESSION_ID_ARG, this.impressionId)
+            .putExtra(Constants.REQUESTER_ID_ARG, this.adView.getId());
+
+        this.debugLayout.removeAllViews();
 
         this.context.startService(auctionIntent);
     }

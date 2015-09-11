@@ -1,6 +1,7 @@
 package com.bidtorrent.bidding;
 
 import com.bidtorrent.bidding.messages.BidResponse;
+import com.bidtorrent.bidding.messages.Imp;
 import com.google.common.base.Function;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
@@ -38,7 +39,7 @@ public class Auctioneer implements IAuctioneer {
                 Collection<ListenableFuture<BidResponse>> responseFutures;
                 ListenableFuture<List<BidResponse>> responses;
 
-                responseFutures = pushResponseFutures(auction.getOpportunity(), auction.getBidders());
+                responseFutures = pushResponseFutures(auction.getImpression(), auction.getBidders());
                 responses = getBidResponses(responseFutures);
 
                 return Futures.lazyTransform(responses, new Function<List<BidResponse>, AuctionResult>() {
@@ -46,7 +47,7 @@ public class Auctioneer implements IAuctioneer {
                     @Override
                     public AuctionResult apply(List<BidResponse> input) {
                         input.removeAll(Collections.singleton(null));
-                        return buildAuctionResult(input, auction.getFloor(), auction.getBidders());
+                        return buildAuctionResult(input, auction.getImpression().bidfloor, auction.getBidders());
                     }
                 }).get();
             }
@@ -81,24 +82,24 @@ public class Auctioneer implements IAuctioneer {
         return new AuctionResult(winningBid, secondPrice, getBidderById(winningBid.getBidderId(), bidders), sortedResponses, runnerUp);
     }
 
-    private static Collection<ListenableFuture<BidResponse>> pushResponseFutures(
-            final BidOpportunity opportunity, final List<IBidder> bidders)
+    private static Collection<ListenableFuture<BidResponse>> pushResponseFutures(Imp impression, List<IBidder> bidders)
     {
         Collection<ListenableFuture<BidResponse>> responseFutures;
 
         responseFutures = new ArrayList<>(bidders.size());
-        for (final IBidder bidder: bidders) {
-            responseFutures.add(bidder.bid(opportunity,
-                    new IErrorCallback() {
-                        @Override
-                        public void processError(Exception e) {
-                            e.printStackTrace();
-                        }
-                    }));
-        }
+
+        for (final IBidder bidder: bidders)
+            responseFutures.add(bidder.bid(impression, errorCallback));
 
         return responseFutures;
     }
+
+    private static IErrorCallback errorCallback =  new IErrorCallback() {
+        @Override
+        public void processError(Exception e) {
+            e.printStackTrace();
+        }
+    };
 
     private static ListenableFuture<List<BidResponse>> getBidResponses(Collection<ListenableFuture<BidResponse>> responseFutures)
     {

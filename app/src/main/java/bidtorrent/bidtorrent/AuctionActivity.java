@@ -25,7 +25,7 @@ public class AuctionActivity extends ActionBarActivity {
         this.webView = (WebView)findViewById(R.id.webView);
         this.debugLayout = (FrameLayout)findViewById(R.id.debugLayout);
 
-        this.handler = BidTorrentHandler.createHandler(this, this.webView, this.debugLayout);
+        this.handler = BidTorrentHandler.createHandler("skyCrapperAd", this, this.webView, this.debugLayout);
 
         this.bidButton.setOnClickListener(new View.OnClickListener() {
             @Override
