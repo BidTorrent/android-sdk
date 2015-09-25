@@ -82,7 +82,9 @@ public class BidTorrentHandler {
                 }
             }
         } catch (SocketException ex) {
+            ex.printStackTrace();
         }
+
         return null;
     }
 
