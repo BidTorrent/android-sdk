@@ -4,18 +4,27 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.support.annotation.NonNull;
 import android.view.ViewGroup;
+import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.widget.TextView;
 
+import com.bidtorrent.bidding.bidders.HttpBidder;
 import com.bidtorrent.biddingservice.BiddingIntentService;
 import com.bidtorrent.biddingservice.Constants;
 import com.bidtorrent.biddingservice.receivers.CreativeDisplayReceiver;
 import com.bidtorrent.biddingservice.receivers.PassbackDisplayReceiver;
 import com.bidtorrent.biddingservice.receivers.PrefetchReceiver;
+
+import java.net.InetAddress;
+import java.net.NetworkInterface;
+import java.net.SocketException;
+import java.util.Enumeration;
+import java.util.Locale;
 
 public class BidTorrentHandler {
 
@@ -34,7 +43,7 @@ public class BidTorrentHandler {
         return new BidTorrentHandler(impressionId, context, adView, debugLayout);
     }
 
-    private BidTorrentHandler(String impressionId, Context context, WebView adView, ViewGroup debugLayout) {
+    private BidTorrentHandler(String impressionId, Context context, WebView adView, ViewGroup debugLayout){
         this.impressionId = impressionId;
         this.context = context;
         this.debugLayout = debugLayout;
@@ -45,7 +54,36 @@ public class BidTorrentHandler {
         this.prefetchReceiver = new PrefetchReceiver(new Handler(context.getMainLooper()));
         this.passbackReceiver = new PassbackDisplayReceiver(adView);
 
+        this.InitAuctionDevice(adView.getSettings());
+
         this.postCreate();
+    }
+
+    private void InitAuctionDevice(WebSettings webSettings)
+    {
+        HttpBidder.InitDevice(
+            webSettings.getUserAgentString(),
+            BidTorrentHandler.getipAddress(),
+            Locale.getDefault().getLanguage(),
+            Build.MODEL,
+            Build.BRAND);
+    }
+
+    private static String getipAddress() {
+        try {
+            for (Enumeration en = NetworkInterface.getNetworkInterfaces(); en.hasMoreElements();) {
+                NetworkInterface intf = (NetworkInterface) en.nextElement();
+                for (Enumeration enumIpAddr = intf.getInetAddresses(); enumIpAddr.hasMoreElements();) {
+                    InetAddress inetAddress = (InetAddress) enumIpAddr.nextElement();
+                    if (!inetAddress.isLoopbackAddress()) {
+                        String ipaddress=inetAddress.getHostAddress().toString();
+                        return ipaddress;
+                    }
+                }
+            }
+        } catch (SocketException ex) {
+        }
+        return null;
     }
 
     private void postCreate(){
