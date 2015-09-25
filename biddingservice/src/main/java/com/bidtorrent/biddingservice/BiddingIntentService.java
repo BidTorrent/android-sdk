@@ -156,7 +156,6 @@ public class BiddingIntentService extends LongLivedService {
                 },
                 new TriggerBidFunction(
                         this.selector,
-                        this.publisherConfiguration,
                         this.pooledHttpClient,
                         this.executor,
                         this.auctioneer),
@@ -165,19 +164,16 @@ public class BiddingIntentService extends LongLivedService {
                     public void apply(Imp impression, AuctionResult auctionResult, Long auctionId) {
                         sendItToPrefetch(auctionResult, impression, auctionId);
                     }
-                }, 5 * 60 * 1000, this.isNetworkAvailable(), new Function<WaitingClient, Boolean>(){
+                }, 5 * 60 * 1000, this.isNetworkAvailable(), new Function<WaitingClient, Boolean>() {
             @Override
             public Boolean apply(WaitingClient waitingClient) {
                 Intent fallbackIntent = new Intent(Constants.DISPLAY_PASSBACK_AD_INTENT);
                 fallbackIntent.putExtra(Constants.PASSBACK_URL_ARG, publisherConfiguration.passback);
                 fallbackIntent.putExtra(Constants.REQUESTER_ID_ARG, waitingClient.getId());
                 sendBroadcast(fallbackIntent);
-
                 return true;
             }
         });
-                //Timeouts?                150000, 5 * 60 * 1000);
-
     }
 
     @Override
@@ -251,7 +247,7 @@ public class BiddingIntentService extends LongLivedService {
         Intent responseAvailableIntent = new Intent(Constants.BID_AVAILABLE_INTENT);
 
         responseAvailableIntent
-                .putExtra(Constants.CREATIVE_CODE_ARG, auctionResult.getWinningBid().seatbid.get(0).bid.get(0).creative)
+                .putExtra(Constants.CREATIVE_CODE_ARG, auctionResult.getWinningBid().getBidResponse().seatbid.get(0).bid.get(0).creative)
                 .putExtra(Constants.IMPRESSION_ID_ARG, impression.id)
                 .putExtra(Constants.AUCTION_ID_ARG, auctionId);
 

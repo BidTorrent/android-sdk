@@ -6,42 +6,52 @@ import com.bidtorrent.bidding.PooledHttpClient;
 import com.bidtorrent.bidding.messages.App;
 import com.bidtorrent.bidding.messages.BidRequest;
 import com.bidtorrent.bidding.messages.BidResponse;
+import com.bidtorrent.bidding.messages.ContextualizedBidResponse;
 import com.bidtorrent.bidding.messages.Device;
 import com.bidtorrent.bidding.messages.Ext;
 import com.bidtorrent.bidding.messages.Geo;
 import com.bidtorrent.bidding.messages.Imp;
 import com.bidtorrent.bidding.messages.Publisher;
 import com.bidtorrent.bidding.messages.User;
+import com.bidtorrent.bidding.messages.configuration.BidderConfiguration;
+import com.google.common.base.Function;
+import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 
 import java.util.Arrays;
 
+import javax.annotation.Nullable;
+
 public class HttpBidder implements IBidder {
 
-    private long id;
-    private final String name;
-    private final String bidUrl;
+    private final BidderConfiguration bidderConfiguration;
     private final PooledHttpClient pooledHttpClient;
 
-    public HttpBidder(long id, String name, String bidUrl, PooledHttpClient pooledHttpClient)
-    {
-        this.id = id;
-        this.name = name;
-        this.bidUrl = bidUrl;
+    public HttpBidder(BidderConfiguration bidderConfiguration, PooledHttpClient pooledHttpClient) {
+        this.bidderConfiguration = bidderConfiguration;
         this.pooledHttpClient = pooledHttpClient;
     }
 
    @Override
-    public ListenableFuture<BidResponse> bid(final Imp impression, IErrorCallback errorCallback) {
-        return pooledHttpClient.jsonPost(bidUrl, HttpBidder.createBidRequest(impression), BidResponse.class);
+    public ListenableFuture<ContextualizedBidResponse> bid(final Imp impression, IErrorCallback errorCallback) {
+        return Futures.transform(pooledHttpClient.jsonPost(this.bidderConfiguration.bid_ep, HttpBidder.createBidRequest(impression), BidResponse.class),
+               new Function<BidResponse, ContextualizedBidResponse>() {
+                   @Nullable
+                   @Override
+                   public ContextualizedBidResponse apply(BidResponse input) {
+                       if (input == null) return null;
+
+                       return new ContextualizedBidResponse(input, bidderConfiguration);
+                   }
+               });
     }
 
     public String getName() {
-        return name;
+        return this.bidderConfiguration.name;
     }
 
     public long getId() {
-        return id;
+        return this.bidderConfiguration.id;
     }
 
     private static BidRequest createBidRequest(Imp impression){

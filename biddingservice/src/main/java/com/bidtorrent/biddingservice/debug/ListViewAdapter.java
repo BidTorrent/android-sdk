@@ -11,23 +11,24 @@ import android.widget.ArrayAdapter;
 import android.widget.TextView;
 
 import com.bidtorrent.bidding.messages.BidResponse;
+import com.bidtorrent.bidding.messages.ContextualizedBidResponse;
 import com.bidtorrent.biddingservice.R;
 
 import java.text.NumberFormat;
 import java.util.List;
 import java.util.Locale;
 
-public class ListViewAdapter extends ArrayAdapter<BidResponse> {
+public class ListViewAdapter extends ArrayAdapter<ContextualizedBidResponse> {
 
     private final int resource;
     // Declare Variables
     Context context;
     LayoutInflater inflater;
-    List<BidResponse> bidresponseslist;
+    List<ContextualizedBidResponse> bidresponseslist;
     private SparseBooleanArray mSelectedItemsIds;
 
     public ListViewAdapter(Context context, int resourceId,
-                           List<BidResponse> bidresponseslist) {
+                           List<ContextualizedBidResponse> bidresponseslist) {
         super(context, resourceId, bidresponseslist);
         mSelectedItemsIds = new SparseBooleanArray();
         this.context = context;
@@ -56,11 +57,11 @@ public class ListViewAdapter extends ArrayAdapter<BidResponse> {
         }
 
         // Capture position and set to the TextViews
-        long bidderId = bidresponseslist.get(position).bidderId;
+        long bidderId = bidresponseslist.get(position).getBidderConfiguration().id;
         holder.bidderuri.setText("BidderId: " + bidderId);
 
         if (bidresponseslist.get(position) != null)
-            holder.price.setText(NumberFormat.getCurrencyInstance(new Locale("en", "US")).format(bidresponseslist.get(position).getPrice()));
+            holder.price.setText(NumberFormat.getCurrencyInstance(new Locale("en", "US")).format(bidresponseslist.get(position).getBidResponse().getPrice()));
         else
             holder.price.setText("TIMEOUT");
 

@@ -1,7 +1,6 @@
 package com.bidtorrent.biddingservice.configuration;
 
 import android.content.res.AssetManager;
-import android.net.Uri;
 import android.util.Log;
 
 import com.bidtorrent.bidding.PooledHttpClient;
@@ -10,10 +9,8 @@ import com.bidtorrent.bidding.messages.Banner;
 import com.bidtorrent.bidding.messages.Ext;
 import com.bidtorrent.bidding.messages.Imp;
 import com.bidtorrent.bidding.messages.Publisher;
-import com.bidtorrent.bidding.messages.configuration.BidderConfiguration;
 import com.bidtorrent.bidding.messages.configuration.PublisherConfiguration;
 import com.google.common.base.Function;
-import com.google.common.util.concurrent.AsyncFunction;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;

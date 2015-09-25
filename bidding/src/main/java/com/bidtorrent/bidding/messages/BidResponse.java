@@ -1,5 +1,7 @@
 package com.bidtorrent.bidding.messages;
 
+import com.bidtorrent.bidding.messages.configuration.BidderConfiguration;
+
 import java.io.Serializable;
 import java.util.ArrayList;
 
@@ -9,6 +11,8 @@ public class BidResponse implements Comparable, Serializable {
     public String id;
     public String cur;
     public ArrayList<Seatbid> seatbid;
+
+    private BidderConfiguration bidderConfiguration;
 
     public BidResponse(long bidderId, float bidPrice, int bidId, String domain, String creative, String notificationUrl) {
         this.bidderId = bidderId;
@@ -33,6 +37,14 @@ public class BidResponse implements Comparable, Serializable {
     public void setBidderId(long bidderId)
     {
         this.bidderId = bidderId;
+    }
+
+    public void setBidderConfiguration(BidderConfiguration bidderConfiguration) {
+        this.bidderConfiguration = bidderConfiguration;
+    }
+
+    public BidderConfiguration getBidderConfiguration() {
+        return bidderConfiguration;
     }
 
     @Override

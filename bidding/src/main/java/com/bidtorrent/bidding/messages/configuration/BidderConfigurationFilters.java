@@ -1,12 +1,13 @@
 package com.bidtorrent.bidding.messages.configuration;
 
+import java.io.Serializable;
 import java.util.Collection;
 import java.util.Collections;
 
 /**
  * Created by x.noelle on 30/06/2015.
  */
-public class BidderConfigurationFilters {
+public class BidderConfigurationFilters implements Serializable{
     public Float sampling;
     public Collection<String> pub_ctry;
     public Boolean pub_ctry_wl;
