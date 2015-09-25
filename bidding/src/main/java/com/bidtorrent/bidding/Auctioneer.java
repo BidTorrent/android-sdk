@@ -1,8 +1,7 @@
 package com.bidtorrent.bidding;
 
-import com.bidtorrent.bidding.messages.BidResponse;
-import com.bidtorrent.bidding.messages.Imp;
 import com.bidtorrent.bidding.messages.ContextualizedBidResponse;
+import com.bidtorrent.bidding.messages.Imp;
 import com.google.common.base.Function;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;

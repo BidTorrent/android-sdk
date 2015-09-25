@@ -1,8 +1,9 @@
 package com.bidtorrent.bidding;
 
-import com.bidtorrent.bidding.messages.Imp;
 import com.bidtorrent.bidding.messages.ContextualizedBidResponse;
+import com.bidtorrent.bidding.messages.Imp;
 import com.google.common.util.concurrent.ListenableFuture;
+
 import java.io.Serializable;
 
 public interface IBidder extends Serializable{

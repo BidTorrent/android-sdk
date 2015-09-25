@@ -156,7 +156,6 @@ public class BiddingIntentService extends LongLivedService {
                 },
                 new TriggerBidFunction(
                         this.selector,
-                        this.publisherConfiguration,
                         this.pooledHttpClient,
                         this.executor,
                         this.auctioneer),

@@ -4,8 +4,8 @@ import android.content.Intent;
 
 import com.bidtorrent.bidding.AuctionResult;
 import com.bidtorrent.bidding.Notificator;
-import com.bidtorrent.bidding.messages.Imp;
 import com.bidtorrent.bidding.messages.ContextualizedBidResponse;
+import com.bidtorrent.bidding.messages.Imp;
 import com.bidtorrent.bidding.messages.configuration.PublisherConfiguration;
 import com.bidtorrent.biddingservice.Constants;
 

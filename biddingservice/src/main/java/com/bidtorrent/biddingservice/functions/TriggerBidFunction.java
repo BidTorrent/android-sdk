@@ -26,20 +26,17 @@ public class TriggerBidFunction implements Function<Imp, ListenableFuture<Auctio
 
     public static final String DEFAULT_CREATIVE = "<html><head><meta name=\"viewport\" content=\"initial-scale=1, width=300, user-scalable=no\" /></head><body style=\"padding:0px; margin:0px\"><img width=\"100%\" src=\"http://adlb.me/bidder/Ads/kitten_ad-300x250.jpg\"/></body></html>";
     private BidderSelector selector;
-    private PublisherConfiguration publisherConfiguration;
     private PooledHttpClient pooledHttpClient;
     private ListeningExecutorService executor;
     private Auctioneer auctioneer;
 
     public TriggerBidFunction(
         BidderSelector selector,
-        PublisherConfiguration publisherConfiguration,
         PooledHttpClient pooledHttpClient,
         ListeningExecutorService executor,
         Auctioneer auctioneer)
     {
         this.selector = selector;
-        this.publisherConfiguration = publisherConfiguration;
         this.pooledHttpClient = pooledHttpClient;
         this.executor = executor;
         this.auctioneer = auctioneer;
@@ -56,9 +53,7 @@ public class TriggerBidFunction implements Function<Imp, ListenableFuture<Auctio
         for (BidderConfiguration config : selector.getAvailableBidders()) {
             bidders.add(
                 new HttpBidder(
-                    1,
-                    "Kitten",
-                    config.bid_ep,
+                    config,
                     pooledHttpClient));
         }
 
